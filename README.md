@@ -22,11 +22,49 @@ Example URLs:
 - `<route>`: The specific endpoint you want to access (e.g., `/search`, `/collection/topfreeapplications`)
 
 ### Available Routes
+
+#### Search
 - `/search`: Search for apps with parameters:
   - `term`: Search term
   - `lang`: Language code (e.g., 'en', 'fr')
   - `country`: Country code (e.g., 'US', 'FR', 'GB')
-- `/collection/topfreeapplications`: Get top free applications with parameters:
+
+#### Collections
+All collection endpoints use the format `/collection/<type>` and accept these parameters:
+- `lang`: Language code (e.g., 'en', 'fr')
+- `country`: Country code (e.g., 'US', 'FR', 'GB')
+
+Available collection types:
+
+**iOS Apps**
+- `topfreeapplications`: Top free iOS apps
+- `topgrossingapplications`: Top grossing iOS apps
+- `toppaidapplications`: Top paid iOS apps
+- `newapplications`: New iOS apps
+- `newfreeapplications`: New free iOS apps
+- `newpaidapplications`: New paid iOS apps
+
+**iPad Apps**
+- `topfreeipadapplications`: Top free iPad apps
+- `topgrossingipadapplications`: Top grossing iPad apps
+- `toppaidipadapplications`: Top paid iPad apps
+
+**Mac Apps**
+- `topmacapplications`: Top Mac apps
+- `topfreemacapplications`: Top free Mac apps
+- `topgrossingmacapplications`: Top grossing Mac apps
+- `toppaidmacapplications`: Top paid Mac apps
+
+#### Developer Apps
+- `/developer-apps/:devId`: Get all apps by a developer
+  - `devId`: Developer ID (e.g., '6480469576')
+  - `lang`: Language code (e.g., 'en', 'fr')
+  - `country`: Country code (e.g., 'US', 'FR', 'GB')
+
+#### Similar Apps
+- `/similar/:id`: Get similar apps for a given app
+  - `id`: App ID (e.g., '6480469576')
+  - `lang`: Language code (e.g., 'en', 'fr')
   - `country`: Country code (e.g., 'US', 'FR', 'GB')
 
 ## Running Locally

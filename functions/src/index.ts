@@ -2,7 +2,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import express from 'express';
 import cors from 'cors';
-import { AppStoreClient, Country } from 'app-store-client';
+import { AppStoreClient, Country, Collection } from 'app-store-client';
 import { Parser } from 'json2csv';
 
 // Define custom interfaces
@@ -136,29 +136,121 @@ app.get('/app/:id', validateCommonParams, async (
       }),
     ]);
 
-    return res.json({ ...appData, ratings: ratingsData });
+    // Calculate total ratings and percentages
+    const totalRatings = ratingsData.ratings || 0;
+    const histogram = ratingsData.histogram || {};
+    const histogramWithPercentages = Object.entries(histogram).reduce((acc, [rating, count]) => {
+      acc[rating] = {
+        count,
+        percentage: totalRatings > 0 ? ((count / totalRatings) * 100).toFixed(1) + '%' : '0.0%'
+      };
+      return acc;
+    }, {} as Record<string, { count: number; percentage: string }>);
+
+    // Add ratings data to the response
+    const ratingsWithPercentages = {
+      total: totalRatings,
+      average: appData.score,
+      histogram: histogramWithPercentages
+    };
+
+    return res.json({ ...appData, ratings: ratingsWithPercentages });
   } catch (error) {
+    logger.error('Error in app details endpoint:', error);
     return next(error);
   }
 });
 
-app.get('/collection/:id', validateCommonParams, async (
+app.get('/collection/:type', validateCommonParams, async (
   req: ValidatedRequest,
   res: express.Response,
   next: express.NextFunction,
 ) => {
   try {
-    const { id } = req.params;
+    const { type } = req.params;
     const { lang, country } = req.validatedParams!;
+    
+    let collection;
+    switch (type) {
+      // iOS Apps
+      case 'topfreeapplications':
+        collection = Collection.TOP_FREE_IOS;
+        break;
+      case 'topgrossingapplications':
+        collection = Collection.TOP_GROSSING_IOS;
+        break;
+      case 'toppaidapplications':
+        collection = Collection.TOP_PAID_IOS;
+        break;
+      case 'newapplications':
+        collection = Collection.NEW_IOS;
+        break;
+      case 'newfreeapplications':
+        collection = Collection.NEW_FREE_IOS;
+        break;
+      case 'newpaidapplications':
+        collection = Collection.NEW_PAID_IOS;
+        break;
 
-    const results = await client.app({
-      id: id.toString(),
+      // iPad Apps
+      case 'topfreeipadapplications':
+        collection = Collection.TOP_FREE_IPAD;
+        break;
+      case 'topgrossingipadapplications':
+        collection = Collection.TOP_GROSSING_IPAD;
+        break;
+      case 'toppaidipadapplications':
+        collection = Collection.TOP_PAID_IPAD;
+        break;
+
+      // Mac Apps (if needed)
+      case 'topmacapplications':
+        collection = Collection.TOP_MAC;
+        break;
+      case 'topfreemacapplications':
+        collection = Collection.TOP_FREE_MAC;
+        break;
+      case 'topgrossingmacapplications':
+        collection = Collection.TOP_GROSSING_MAC;
+        break;
+      case 'toppaidmacapplications':
+        collection = Collection.TOP_PAID_MAC;
+        break;
+
+      default:
+        return res.status(400).json({ 
+          error: 'Invalid collection type',
+          validTypes: [
+            // iOS
+            'topfreeapplications',
+            'topgrossingapplications',
+            'toppaidapplications',
+            'newapplications',
+            'newfreeapplications',
+            'newpaidapplications',
+            // iPad
+            'topfreeipadapplications',
+            'topgrossingipadapplications',
+            'toppaidipadapplications',
+            // Mac
+            'topmacapplications',
+            'topfreemacapplications',
+            'topgrossingmacapplications',
+            'toppaidmacapplications'
+          ]
+        });
+    }
+
+    const results = await client.list({
+      collection,
       country: getCountryCode(country),
       language: lang,
+      num: 100
     });
 
     return res.json(results);
   } catch (error) {
+    logger.error('Error in collection endpoint:', error);
     return next(error);
   }
 });
@@ -207,6 +299,52 @@ app.get('/reviews/:id/csv', validateCommonParams, async (
     res.send(csv);
   } catch (error) {
     next(error);
+  }
+});
+
+// Get apps by developer ID
+app.get('/developer-apps/:devId', validateCommonParams, async (
+  req: ValidatedRequest,
+  res: express.Response,
+  next: express.NextFunction,
+) => {
+  try {
+    const { devId } = req.params;
+    const { lang, country } = req.validatedParams!;
+
+    const results = await client.appsByDeveloper({
+      devId: devId.toString(),
+      country: getCountryCode(country),
+      language: lang
+    });
+
+    return res.json(results);
+  } catch (error) {
+    logger.error('Error in developer-apps endpoint:', error);
+    return next(error);
+  }
+});
+
+// Get similar apps
+app.get('/similar/:id', validateCommonParams, async (
+  req: ValidatedRequest,
+  res: express.Response,
+  next: express.NextFunction,
+) => {
+  try {
+    const { id } = req.params;
+    const { lang, country } = req.validatedParams!;
+
+    const results = await client.similarApps({
+      id: id.toString(),
+      country: getCountryCode(country),
+      language: lang
+    });
+
+    return res.json(results);
+  } catch (error) {
+    logger.error('Error in similar apps endpoint:', error);
+    return next(error);
   }
 });
 
