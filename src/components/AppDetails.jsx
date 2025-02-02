@@ -215,6 +215,7 @@ function AppDetails() {
                     sx={{ 
                       textDecoration: 'none', 
                       color: 'inherit',
+                      fontWeight: 'bold',
                       '&:hover': { color: 'primary.main' } 
                     }}
                   >
@@ -294,6 +295,7 @@ function AppDetails() {
                   <CollapsibleSection 
                     title={`Languages (${new Intl.DisplayNames([details.currentLanguage || 'en'], { type: 'language' }).of(details.currentLanguage || 'en')})`} 
                     defaultExpanded={false}
+                    titleVariant="subtitle1"
                   >
                     <Paper variant="outlined" sx={{ p: 2 }}>
                       <Grid container spacing={1}>
@@ -336,10 +338,31 @@ function AppDetails() {
                   </CollapsibleSection>
                 )}
 
+                {/* Supported Devices - Collapsible */}
+                {details?.supportedDevices && details.supportedDevices.length > 0 && (
+                  <CollapsibleSection title="Supported Devices" defaultExpanded={false} titleVariant="subtitle1">
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      <List dense disablePadding>
+                        {details.supportedDevices.map((device, index) => (
+                          <ListItem key={index} sx={{ px: 1 }}>
+                            <ListItemIcon>
+                              <PhoneIphone fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText 
+                              primary={device}
+                              primaryTypographyProps={{ variant: 'body2' }}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Paper>
+                  </CollapsibleSection>
+                )}
+
                 {/* Developer's Other Apps */}
                 {developerApps.length > 0 && (
                   <Box sx={{ mb: 3 }}>
-                    <Typography variant="h6" gutterBottom>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }} gutterBottom>
                       More by {details.developer}
                     </Typography>
                     <Grid container spacing={1}>
@@ -380,27 +403,6 @@ function AppDetails() {
                       ))}
                     </Grid>
                   </Box>
-                )}
-
-                {/* Supported Devices - Collapsible */}
-                {details?.supportedDevices && details.supportedDevices.length > 0 && (
-                  <CollapsibleSection title="Supported Devices" defaultExpanded={false}>
-                    <Paper variant="outlined" sx={{ p: 2 }}>
-                      <List dense disablePadding>
-                        {details.supportedDevices.map((device, index) => (
-                          <ListItem key={index} sx={{ px: 1 }}>
-                            <ListItemIcon>
-                              <PhoneIphone fontSize="small" />
-                            </ListItemIcon>
-                            <ListItemText 
-                              primary={device}
-                              primaryTypographyProps={{ variant: 'body2' }}
-                            />
-                          </ListItem>
-                        ))}
-                      </List>
-                    </Paper>
-                  </CollapsibleSection>
                 )}
               </Box>
             </Grid>
