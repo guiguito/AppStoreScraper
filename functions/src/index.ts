@@ -138,38 +138,68 @@ app.get('/app/:id', validateCommonParams, async (
     const { id } = req.params;
     const { lang, country } = req.validatedParams!;
 
-    const [appData, ratingsData] = await Promise.all([
-      client.app({
+    // Fetch app data first - if this fails, we want to return an error
+    const appData = await client.app({
+      id: id.toString(),
+      country: getCountryCode(country),
+      language: lang,
+    });
+
+    // Fetch ratings and privacy data in parallel, handle errors individually
+    const [ratingsData, privacyData] = await Promise.allSettled([
+      client.ratings({
         id: id.toString(),
         country: getCountryCode(country),
         language: lang,
       }),
-      client.ratings({
+      client.privacy({
         id: id.toString(),
         country: getCountryCode(country),
         language: lang,
       }),
     ]);
 
-    // Calculate total ratings and percentages
-    const totalRatings = ratingsData.ratings || 0;
-    const histogram = ratingsData.histogram || {};
-    const histogramWithPercentages = Object.entries(histogram).reduce((acc, [rating, count]) => {
-      acc[rating] = {
-        count,
-        percentage: totalRatings > 0 ? ((count / totalRatings) * 100).toFixed(1) + '%' : '0.0%',
-      };
-      return acc;
-    }, {} as Record<string, { count: number; percentage: string }>);
-
-    // Add ratings data to the response
-    const ratingsWithPercentages = {
-      total: totalRatings,
-      average: appData.score,
-      histogram: histogramWithPercentages,
+    // Process ratings data if available
+    let ratingsWithPercentages = {
+      total: 0,
+      average: appData.score || 0,
+      histogram: {},
     };
 
-    return res.json({ ...appData, ratings: ratingsWithPercentages });
+    if (ratingsData.status === 'fulfilled') {
+      const rData = ratingsData.value;
+      const totalRatings = rData.ratings || 0;
+      const histogram = rData.histogram || {};
+      const histogramWithPercentages = Object.entries(histogram).reduce((acc, [rating, count]) => {
+        acc[rating] = {
+          count,
+          percentage: totalRatings > 0 ? ((count / totalRatings) * 100).toFixed(1) + '%' : '0.0%',
+        };
+        return acc;
+      }, {} as Record<string, { count: number; percentage: string }>);
+
+      ratingsWithPercentages = {
+        total: totalRatings,
+        average: appData.score || 0,
+        histogram: histogramWithPercentages,
+      };
+    } else {
+      logger.warn('Failed to fetch ratings:', ratingsData.reason);
+    }
+
+    // Process privacy data if available
+    let privacyInfo = {};
+    if (privacyData.status === 'fulfilled') {
+      privacyInfo = privacyData.value;
+    } else {
+      logger.warn('Failed to fetch privacy data:', privacyData.reason);
+    }
+
+    return res.json({ 
+      ...appData, 
+      ratings: ratingsWithPercentages,
+      ...privacyInfo
+    });
   } catch (error) {
     logger.error('Error in app details endpoint:', error);
     return next(error);

@@ -299,41 +299,68 @@ function AppDetails() {
                   >
                     <Paper variant="outlined" sx={{ p: 2 }}>
                       <Grid container spacing={1}>
-                        {details.languages.map((lang) => (
-                          <Grid item key={lang}>
-                            <Box 
-                              onClick={() => {
-                                setSelectedLang(lang);
-                                const searchParams = new URLSearchParams(window.location.search);
-                                searchParams.set('lang', lang);
-                                navigate(`${window.location.pathname}?${searchParams.toString()}`, { replace: true });
-                              }}
-                              sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 0.5,
-                                border: 1,
-                                borderColor: lang === (details.currentLanguage || 'en') ? 'primary.main' : 'divider',
-                                borderRadius: 1,
-                                px: 1,
-                                py: 0.5,
-                                cursor: 'pointer',
-                                '&:hover': {
-                                  backgroundColor: 'action.hover'
-                                }
-                              }}
-                            >
-                              <Flag
-                                code={lang === 'en' ? 'us' : lang}
-                                height="16"
-                              />
-                              <Typography variant="body2">
-                                {new Intl.DisplayNames([lang], { type: 'language' }).of(lang)}
-                              </Typography>
-                            </Box>
+                        {details.languages.map((language) => (
+                          <Grid item key={language}>
+                            <Chip
+                              icon={<Language />}
+                              label={new Intl.DisplayNames([details.currentLanguage || 'en'], { type: 'language' }).of(language)}
+                              variant="outlined"
+                              size="small"
+                            />
                           </Grid>
                         ))}
                       </Grid>
+                    </Paper>
+                  </CollapsibleSection>
+                )}
+
+                {/* Privacy - Collapsible */}
+                {details.privacyTypes && details.privacyTypes.length > 0 && (
+                  <CollapsibleSection 
+                    title="Privacy" 
+                    defaultExpanded={false}
+                    titleVariant="subtitle1"
+                  >
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      {details.privacyTypes.map((privacyType) => (
+                        <Box key={privacyType.identifier} sx={{ mb: 2 }}>
+                          <Typography variant="subtitle2" gutterBottom>
+                            {privacyType.privacyType}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" paragraph>
+                            {privacyType.description}
+                          </Typography>
+                          {privacyType.purposes.map((purpose) => (
+                            <Box key={purpose.identifier} sx={{ mb: 2, pl: 2 }}>
+                              <Typography variant="body2" gutterBottom sx={{ fontWeight: 'medium' }}>
+                                {purpose.purpose}
+                              </Typography>
+                              {purpose.dataCategories.map((category) => (
+                                <Box key={category.identifier} sx={{ mb: 1, pl: 2 }}>
+                                  <Typography variant="body2" gutterBottom>
+                                    {category.dataCategory}:
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ pl: 2 }}>
+                                    {category.dataTypes.join(', ')}
+                                  </Typography>
+                                </Box>
+                              ))}
+                            </Box>
+                          ))}
+                        </Box>
+                      ))}
+                      {details.managePrivacyChoicesUrl && (
+                        <Button 
+                          href={details.managePrivacyChoicesUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          variant="outlined"
+                          size="small"
+                          sx={{ mt: 1 }}
+                        >
+                          Manage Privacy Choices
+                        </Button>
+                      )}
                     </Paper>
                   </CollapsibleSection>
                 )}
