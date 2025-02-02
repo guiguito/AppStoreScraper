@@ -198,7 +198,7 @@ app.get('/app/:id', validateCommonParams, async (
     return res.json({ 
       ...appData, 
       ratings: ratingsWithPercentages,
-      ...privacyInfo
+      ...privacyInfo,
     });
   } catch (error) {
     logger.error('Error in app details endpoint:', error);

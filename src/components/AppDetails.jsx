@@ -387,7 +387,7 @@ function AppDetails() {
                 )}
 
                 {/* Developer's Other Apps */}
-                {developerApps.length > 0 && (
+                {developerApps.length > 0 && !(developerApps.length === 1 && developerApps[0].id.toString() === id.toString()) && (
                   <Box sx={{ mb: 3 }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }} gutterBottom>
                       More by {details.developer}
