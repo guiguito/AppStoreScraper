@@ -2,7 +2,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import express from 'express';
 
-import { AppStoreClient, Country, Collection } from 'app-store-client';
+import { AppStoreClient, Country, Collection, Sort, Review } from 'app-store-client';
 import { Parser } from 'json2csv';
 
 // Define custom interfaces
@@ -330,17 +330,63 @@ app.get('/reviews/:id/csv', validateCommonParams, async (
     const { id } = req.params;
     const { lang, country } = req.validatedParams!;
 
-    const results = await client.reviews({
-      id: id.toString(),
-      country: getCountryCode(country),
-      language: lang,
-    });
+    // Array to store all reviews
+    let allReviews: Review[] = [];
+    let page = 0;
+    let hasMore = true;
+    const MAX_PAGES = 20; // Safety limit to prevent infinite loops
 
+    logger.info(`Starting to fetch reviews for app ${id}`);
+    logger.info(`Country: ${country}, Language: ${lang}`);
+
+    // Fetch all pages
+    while (hasMore && page <= MAX_PAGES) {
+      try {
+        logger.info(`Fetching page ${page} for app ${id}...`);
+        const results = await client.reviews({
+          id: id.toString(),
+          country: getCountryCode(country),
+          language: lang,
+          page,
+          sort: Sort.RECENT,
+        });
+
+        logger.info(`Page ${page} received ${results?.length ?? 0} reviews`);
+
+        if (results && results.length > 0) {
+          allReviews = [...allReviews, ...results];
+          logger.info(`Total reviews collected: ${allReviews.length} (after page ${page})`);
+          page++;
+        } else {
+          logger.info(`No more reviews found at page ${page}, stopping pagination`);
+          hasMore = false;
+        }
+      } catch (error) {
+        logger.error(`Error fetching page ${page}:`, error);
+        if (error instanceof Error) {
+          logger.error('Error details:', {
+            message: error.message,
+            name: error.name,
+            stack: error.stack,
+          });
+        }
+        hasMore = false;
+      }
+    }
+
+    if (page >= MAX_PAGES) {
+      logger.warn(`Reached maximum page limit (${MAX_PAGES}) for app ${id}`);
+    }
+
+    logger.info(`Converting ${allReviews.length} total reviews to CSV for app ${id}`);
     const parser = new Parser();
-    const csv = parser.parse(results);
+    const csv = parser.parse(allReviews);
+
+    const filename = `reviews-${id}-${allReviews.length}-reviews.csv`;
+    logger.info(`Sending CSV file: ${filename}`);
 
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename=reviews-${id}.csv`);
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
     res.send(csv);
   } catch (error) {
     next(error);

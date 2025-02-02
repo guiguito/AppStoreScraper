@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { buildApiUrl } from '../config';
 import ScreenshotGallery from './ScreenshotGallery';
 import RatingsHistogram from './RatingsHistogram';
-import Flag from 'react-world-flags';
+import * as flags from 'country-flag-icons/react/3x2';
 import {
   Card,
   CardContent,
@@ -299,16 +299,37 @@ function AppDetails() {
                   >
                     <Paper variant="outlined" sx={{ p: 2 }}>
                       <Grid container spacing={1}>
-                        {details.languages.map((language) => (
-                          <Grid item key={language}>
-                            <Chip
-                              icon={<Language />}
-                              label={new Intl.DisplayNames([details.currentLanguage || 'en'], { type: 'language' }).of(language)}
-                              variant="outlined"
-                              size="small"
-                            />
-                          </Grid>
-                        ))}
+                        {details.languages.map((language) => {
+                          // Map language codes to country codes for flags
+                          const countryCode = language === 'en' ? 'GB' : 
+                                            language === 'ja' ? 'JP' :
+                                            language === 'ko' ? 'KR' :
+                                            language === 'zh' ? 'CN' :
+                                            language.toUpperCase();
+                          const FlagComponent = flags[countryCode];
+                          return (
+                            <Grid item key={language}>
+                              <Chip
+                                icon={FlagComponent ? <FlagComponent style={{ width: '16px', marginLeft: '8px' }} /> : <Language />}
+                                label={new Intl.DisplayNames([details.currentLanguage || 'en'], { type: 'language' }).of(language)}
+                                variant={language === selectedLang ? "filled" : "outlined"}
+                                size="small"
+                                onClick={() => {
+                                  setSelectedLang(language);
+                                  const searchParams = new URLSearchParams(window.location.search);
+                                  searchParams.set('lang', language);
+                                  navigate(`/app/${id}?${searchParams.toString()}`);
+                                }}
+                                sx={{
+                                  cursor: 'pointer',
+                                  '&:hover': {
+                                    backgroundColor: 'action.hover',
+                                  },
+                                }}
+                              />
+                            </Grid>
+                          );
+                        })}
                       </Grid>
                     </Paper>
                   </CollapsibleSection>
