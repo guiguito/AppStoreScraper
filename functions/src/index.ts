@@ -142,7 +142,7 @@ app.get('/app/:id', validateCommonParams, async (
     const histogramWithPercentages = Object.entries(histogram).reduce((acc, [rating, count]) => {
       acc[rating] = {
         count,
-        percentage: totalRatings > 0 ? ((count / totalRatings) * 100).toFixed(1) + '%' : '0.0%'
+        percentage: totalRatings > 0 ? ((count / totalRatings) * 100).toFixed(1) + '%' : '0.0%',
       };
       return acc;
     }, {} as Record<string, { count: number; percentage: string }>);
@@ -151,7 +151,7 @@ app.get('/app/:id', validateCommonParams, async (
     const ratingsWithPercentages = {
       total: totalRatings,
       average: appData.score,
-      histogram: histogramWithPercentages
+      histogram: histogramWithPercentages,
     };
 
     return res.json({ ...appData, ratings: ratingsWithPercentages });
@@ -172,80 +172,80 @@ app.get('/collection/:type', validateCommonParams, async (
     
     let collection;
     switch (type) {
-      // iOS Apps
-      case 'topfreeapplications':
-        collection = Collection.TOP_FREE_IOS;
-        break;
-      case 'topgrossingapplications':
-        collection = Collection.TOP_GROSSING_IOS;
-        break;
-      case 'toppaidapplications':
-        collection = Collection.TOP_PAID_IOS;
-        break;
-      case 'newapplications':
-        collection = Collection.NEW_IOS;
-        break;
-      case 'newfreeapplications':
-        collection = Collection.NEW_FREE_IOS;
-        break;
-      case 'newpaidapplications':
-        collection = Collection.NEW_PAID_IOS;
-        break;
+    // iOS Apps
+    case 'topfreeapplications':
+      collection = Collection.TOP_FREE_IOS;
+      break;
+    case 'topgrossingapplications':
+      collection = Collection.TOP_GROSSING_IOS;
+      break;
+    case 'toppaidapplications':
+      collection = Collection.TOP_PAID_IOS;
+      break;
+    case 'newapplications':
+      collection = Collection.NEW_IOS;
+      break;
+    case 'newfreeapplications':
+      collection = Collection.NEW_FREE_IOS;
+      break;
+    case 'newpaidapplications':
+      collection = Collection.NEW_PAID_IOS;
+      break;
 
       // iPad Apps
-      case 'topfreeipadapplications':
-        collection = Collection.TOP_FREE_IPAD;
-        break;
-      case 'topgrossingipadapplications':
-        collection = Collection.TOP_GROSSING_IPAD;
-        break;
-      case 'toppaidipadapplications':
-        collection = Collection.TOP_PAID_IPAD;
-        break;
+    case 'topfreeipadapplications':
+      collection = Collection.TOP_FREE_IPAD;
+      break;
+    case 'topgrossingipadapplications':
+      collection = Collection.TOP_GROSSING_IPAD;
+      break;
+    case 'toppaidipadapplications':
+      collection = Collection.TOP_PAID_IPAD;
+      break;
 
       // Mac Apps (if needed)
-      case 'topmacapplications':
-        collection = Collection.TOP_MAC;
-        break;
-      case 'topfreemacapplications':
-        collection = Collection.TOP_FREE_MAC;
-        break;
-      case 'topgrossingmacapplications':
-        collection = Collection.TOP_GROSSING_MAC;
-        break;
-      case 'toppaidmacapplications':
-        collection = Collection.TOP_PAID_MAC;
-        break;
+    case 'topmacapplications':
+      collection = Collection.TOP_MAC;
+      break;
+    case 'topfreemacapplications':
+      collection = Collection.TOP_FREE_MAC;
+      break;
+    case 'topgrossingmacapplications':
+      collection = Collection.TOP_GROSSING_MAC;
+      break;
+    case 'toppaidmacapplications':
+      collection = Collection.TOP_PAID_MAC;
+      break;
 
-      default:
-        return res.status(400).json({ 
-          error: 'Invalid collection type',
-          validTypes: [
-            // iOS
-            'topfreeapplications',
-            'topgrossingapplications',
-            'toppaidapplications',
-            'newapplications',
-            'newfreeapplications',
-            'newpaidapplications',
-            // iPad
-            'topfreeipadapplications',
-            'topgrossingipadapplications',
-            'toppaidipadapplications',
-            // Mac
-            'topmacapplications',
-            'topfreemacapplications',
-            'topgrossingmacapplications',
-            'toppaidmacapplications'
-          ]
-        });
+    default:
+      return res.status(400).json({ 
+        error: 'Invalid collection type',
+        validTypes: [
+          // iOS
+          'topfreeapplications',
+          'topgrossingapplications',
+          'toppaidapplications',
+          'newapplications',
+          'newfreeapplications',
+          'newpaidapplications',
+          // iPad
+          'topfreeipadapplications',
+          'topgrossingipadapplications',
+          'toppaidipadapplications',
+          // Mac
+          'topmacapplications',
+          'topfreemacapplications',
+          'topgrossingmacapplications',
+          'toppaidmacapplications',
+        ],
+      });
     }
 
     const results = await client.list({
       collection,
       country: getCountryCode(country),
       language: lang,
-      num: 100
+      num: 100,
     });
 
     return res.json(results);
@@ -315,7 +315,7 @@ app.get('/developer-apps/:devId', validateCommonParams, async (
     const results = await client.appsByDeveloper({
       devId: devId.toString(),
       country: getCountryCode(country),
-      language: lang
+      language: lang,
     });
 
     return res.json(results);
@@ -338,7 +338,7 @@ app.get('/similar/:id', validateCommonParams, async (
     const results = await client.similarApps({
       id: id.toString(),
       country: getCountryCode(country),
-      language: lang
+      language: lang,
     });
 
     return res.json(results);
