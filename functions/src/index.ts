@@ -1,7 +1,7 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import express from 'express';
-import cors from 'cors';
+
 import { AppStoreClient, Country, Collection } from 'app-store-client';
 import { Parser } from 'json2csv';
 
@@ -16,8 +16,23 @@ interface ValidatedRequest extends express.Request {
 const app = express();
 const client = new AppStoreClient();
 
-// Enable CORS
-app.use(cors());
+// CORS middleware for all requests
+app.use((req, res, next) => {
+  // Allow requests from any origin
+  const origin = req.headers.origin;
+  res.header('Access-Control-Allow-Origin', origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Max-Age', '3600');
+
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+
+  next();
+});
 
 // Middleware for parsing JSON
 app.use(express.json());
@@ -362,10 +377,13 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // Export the Express app as a Firebase Function
+// Configure Cloud Function with CORS settings
 export const api = onRequest({
   timeoutSeconds: 300,
   memory: '256MiB',
   minInstances: 0,
   maxInstances: 10,
   region: 'us-central1',
+  cors: ['https://appstorescraper-372b7.web.app', 'http://localhost:5173'],
+  invoker: 'public',
 }, app);

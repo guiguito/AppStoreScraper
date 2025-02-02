@@ -119,7 +119,11 @@ function AppDetails() {
       setLoadingReviews(true);
       try {
         const response = await fetch(
-          `/api/reviews/${id}?lang=${selectedLang}&country=${selectedCountry}&page=${reviewPage}`,
+          buildApiUrl(`/reviews/${id}`, {
+            lang: selectedLang,
+            country: selectedCountry,
+            page: reviewPage
+          }),
           { signal }
         );
 
