@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Grid, Typography, Card, CardContent, Avatar, Box, Skeleton } from '@mui/material';
+import { Grid, Typography, Card, CardContent, Avatar, Box, Skeleton, Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
 import { buildApiUrl } from '../config';
 
@@ -16,6 +17,8 @@ function AppCollections({ country }) {
   const navigate = useNavigate();
   const [collectionData, setCollectionData] = useState({});
   const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedCollection, setSelectedCollection] = useState(null);
 
   useEffect(() => {
     const fetchCollections = async () => {
@@ -89,6 +92,7 @@ function AppCollections({ country }) {
   );
 
   return (
+    <>
     <Box sx={{ my: { xs: 4, sm: 6 } }}>
       {collections.map(({ id, title }) => (
         <Box key={id} sx={{ mb: { xs: 4, sm: 6 } }}>
@@ -115,6 +119,10 @@ function AppCollections({ country }) {
                 cursor: 'pointer',
                 '&:hover': { color: 'primary.main' }
               }}
+              onClick={() => {
+                setSelectedCollection({ id, title });
+                setModalOpen(true);
+              }}
             >
               View all
             </Typography>
@@ -128,6 +136,38 @@ function AppCollections({ country }) {
         </Box>
       ))}
     </Box>
+    <Dialog
+      open={modalOpen}
+      onClose={() => setModalOpen(false)}
+      maxWidth="lg"
+      fullWidth
+      PaperProps={{
+        sx: {
+          height: '90vh',
+          maxHeight: '90vh'
+        }
+      }}
+    >
+      <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {selectedCollection?.title}
+        <IconButton
+          onClick={() => setModalOpen(false)}
+          sx={{
+            position: 'absolute',
+            right: 8,
+            top: 8,
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent dividers sx={{ p: 2 }}>
+        <Grid container spacing={2}>
+          {selectedCollection && collectionData[selectedCollection.id]?.slice(0, 200).map(renderAppCard)}
+        </Grid>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

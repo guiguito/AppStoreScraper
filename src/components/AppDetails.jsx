@@ -204,10 +204,36 @@ function AppDetails() {
                       sx={{ width: 120, height: 120, mb: 2 }}
                     />
                   )}
-                  <Typography variant="h5" align="center" gutterBottom>
+                  <Typography 
+                    variant="h5" 
+                    align="center" 
+                    gutterBottom 
+                    component="a"
+                    href={details.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{ 
+                      textDecoration: 'none', 
+                      color: 'inherit',
+                      '&:hover': { color: 'primary.main' } 
+                    }}
+                  >
                     {details.title}
                   </Typography>
-                  <Typography variant="subtitle1" color="text.secondary" align="center" gutterBottom>
+                  <Typography 
+                    variant="subtitle1" 
+                    color="text.secondary" 
+                    align="center" 
+                    gutterBottom
+                    component="a"
+                    href={details.developerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{ 
+                      textDecoration: 'none', 
+                      '&:hover': { color: 'primary.main' } 
+                    }}
+                  >
                     {details.developer}
                   </Typography>
                   {details.genres && details.genres.length > 0 && (
@@ -225,10 +251,19 @@ function AppDetails() {
                   )}
                 </Box>
 
-                {/* Version and Dates */}
+                {/* App Info */}
                 <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
                   <Typography variant="body2" color="text.secondary" paragraph>
+                    Price: {details.price === 0 ? 'Free' : `$${details.price.toFixed(2)}`}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" paragraph>
                     Version: {details.version}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" paragraph>
+                    Required OS Version: {details.requiredOsVersion}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" paragraph>
+                    Content Rating: {details.contentRating}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" paragraph>
                     Released: {new Date(details.released).toLocaleDateString()}
@@ -242,20 +277,16 @@ function AppDetails() {
                 <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
                     <Typography variant="h4" sx={{ mr: 1 }}>
-                      {details?.score?.toFixed(1) || '0.0'}
+                      {details?.ratings?.average?.toFixed(1) || '0.0'}
                     </Typography>
                     <Typography variant="h4" sx={{ color: 'warning.main' }}>
                       ★
                     </Typography>
                   </Box>
                   <Typography variant="body2" align="center" sx={{ mb: 2 }}>
-                    ({details?.ratings?.toLocaleString() || 0} ratings)
+                    ({details?.ratings?.total?.toLocaleString() || 0} ratings)
                   </Typography>
-                  <RatingsHistogram
-                    ratings={details?.score || 0}
-                    histogram={details?.histogram || {}}
-                    totalRatings={details?.ratings || 0}
-                  />
+                  <RatingsHistogram histogram={details?.ratings?.histogram || {}} />
                 </Paper>
 
                 {/* Languages - Collapsible */}
@@ -376,14 +407,17 @@ function AppDetails() {
 
             {/* Right Column */}
             <Grid item xs={12} md={8}>
-              {/* Screenshots */}
+              {/* Screenshots Sections */}
               {details?.screenshots && details.screenshots.length > 0 && (
-                <Box sx={{ mb: 4 }}>
-                  <Typography variant="h6" gutterBottom>
-                    Screenshots
-                  </Typography>
+                <CollapsibleSection title="iPhone Screenshots" defaultExpanded={true}>
                   <ScreenshotGallery screenshots={details.screenshots} />
-                </Box>
+                </CollapsibleSection>
+              )}
+
+              {details?.ipadScreenshots && details.ipadScreenshots.length > 0 && (
+                <CollapsibleSection title="iPad Screenshots" defaultExpanded={false}>
+                  <ScreenshotGallery screenshots={details.ipadScreenshots} />
+                </CollapsibleSection>
               )}
 
               {/* What's New */}

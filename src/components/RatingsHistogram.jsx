@@ -10,11 +10,11 @@ import StarIcon from '@mui/icons-material/Star';
 function RatingsHistogram({ histogram = {} }) {
   // Convert histogram values to numbers
   const validHistogram = {
-    5: parseInt(histogram['5']) || 0,
-    4: parseInt(histogram['4']) || 0,
-    3: parseInt(histogram['3']) || 0,
-    2: parseInt(histogram['2']) || 0,
-    1: parseInt(histogram['1']) || 0
+    5: histogram['5']?.count || 0,
+    4: histogram['4']?.count || 0,
+    3: histogram['3']?.count || 0,
+    2: histogram['2']?.count || 0,
+    1: histogram['1']?.count || 0
   };
 
   // Calculate total from histogram
