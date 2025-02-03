@@ -1,31 +1,44 @@
+// Register ts-node to handle TypeScript files
+require('ts-node').register({
+  project: './functions/tsconfig.json'
+});
+
 const express = require('express');
 const cors = require('cors');
-const { validateCommonParams, errorHandler } = require('./middleware/requestHandler');
-const appRoutes = require('./routes/appRoutes');
+const { onRequest } = require('firebase-functions/v2/https');
+const admin = require('firebase-admin');
 
-const app = express();
+// Initialize Firebase Admin only in production
+if (process.env.NODE_ENV !== 'development') {
+  const serviceAccount = require('./service-account.json');
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+}
+
+// Import the Firebase Functions app
+const { app } = require('./functions/src/index');
+
+// Create Express app for local development
+const localApp = express();
 
 // Enable CORS with specific options
-app.use(cors({
+localApp.use(cors({
   origin: 'http://localhost:5173',
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type']
 }));
 
-// Add middleware to parse JSON
-app.use(express.json());
+// Use the Firebase Functions routes
+localApp.use('/api', app);
 
-// Add common parameter validation middleware
-app.use('/api', validateCommonParams);
+// Start the server for local development
+if (process.env.NODE_ENV === 'development') {
+  const PORT = process.env.PORT || 3000;
+  localApp.listen(PORT, () => {
+    console.log(`Local development server is running on port ${PORT}`);
+  });
+}
 
-// Mount routes
-app.use('/api', appRoutes);
-
-// Global error handling middleware
-app.use(errorHandler);
-
-// Start the server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+// Export for Firebase Functions
+exports.api = onRequest(app);

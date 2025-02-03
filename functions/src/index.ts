@@ -324,11 +324,23 @@ app.get('/reviews/:id', validateCommonParams, async (
 app.get('/reviews/:id/csv', validateCommonParams, async (
   req: ValidatedRequest,
   res: express.Response,
-  next: express.NextFunction,
 ) => {
   try {
     const { id } = req.params;
     const { lang, country } = req.validatedParams!;
+
+    // Verify app exists first
+    try {
+      await client.app({
+        id: id.toString(),
+        country: getCountryCode(country),
+      });
+    } catch (error) {
+      logger.error(`App ${id} not found:`, error);
+      return res.status(404).json({
+        error: `App with ID ${id} not found in the ${country} App Store`,
+      });
+    }
 
     // Array to store all reviews
     let allReviews: Review[] = [];
@@ -374,22 +386,44 @@ app.get('/reviews/:id/csv', validateCommonParams, async (
       }
     }
 
+    // If we have no reviews at all, return a 404
+    if (allReviews.length === 0) {
+      return res.status(404).json({
+        error: `No reviews found for app ${id} in ${country} with language ${lang}`,
+      });
+    }
+
     if (page >= MAX_PAGES) {
       logger.warn(`Reached maximum page limit (${MAX_PAGES}) for app ${id}`);
     }
 
-    logger.info(`Converting ${allReviews.length} total reviews to CSV for app ${id}`);
-    const parser = new Parser();
-    const csv = parser.parse(allReviews);
+    try {
+      logger.info(`Converting ${allReviews.length} total reviews to CSV for app ${id}`);
+      const parser = new Parser();
+      const csv = parser.parse(allReviews);
 
-    const filename = `reviews-${id}-${allReviews.length}-reviews.csv`;
-    logger.info(`Sending CSV file: ${filename}`);
+      const filename = `reviews-${id}-${allReviews.length}-reviews.csv`;
+      logger.info(`Sending CSV file: ${filename}`);
 
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
-    res.send(csv);
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      return res.send(csv);
+    } catch (error) {
+      logger.error('Error converting reviews to CSV:', error);
+      return res.status(500).json({
+        error: 'Failed to generate CSV file',
+      });
+    }
   } catch (error) {
-    next(error);
+    logger.error('Unexpected error in CSV endpoint:', error);
+    if (error instanceof Error) {
+      return res.status(500).json({
+        error: `An unexpected error occurred: ${error.message}`,
+      });
+    }
+    return res.status(500).json({
+      error: 'An unexpected error occurred',
+    });
   }
 });
 
@@ -451,6 +485,9 @@ if (process.env.NODE_ENV === 'development') {
     console.log(`Server is running on port ${port}`);
   });
 }
+
+// Export the Express app for local development
+export { app };
 
 // Export the Express app as a Firebase Function
 // Configure Cloud Function with CORS settings

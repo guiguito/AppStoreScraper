@@ -153,8 +153,40 @@ function AppDetails() {
     return () => controller.abort();
   }, [id, selectedLang, selectedCountry, reviewPage]); // Only re-run if id, selectedLang, or selectedCountry changes
 
-  const handleDownloadReviews = () => {
-    window.location.href = `/api/reviews/${id}/csv?lang=${selectedLang}&country=${selectedCountry}`;
+  const handleDownloadReviews = async () => {
+    try {
+      const response = await fetch(
+        buildApiUrl(`/reviews/${id}/csv`, {
+          lang: selectedLang,
+          country: selectedCountry
+        })
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to download reviews: ${response.statusText}`);
+      }
+
+      // Get the filename from the Content-Disposition header if available
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filenameMatch = contentDisposition && contentDisposition.match(/filename=([^;]+)/); 
+      const filename = filenameMatch ? filenameMatch[1] : `reviews-${id}.csv`;
+
+      // Convert the response to a blob
+      const blob = await response.blob();
+      
+      // Create a download link and trigger it
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading reviews:', error);
+      setError(error.message);
+    }
   };
 
   if (error) {
