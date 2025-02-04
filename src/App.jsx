@@ -7,13 +7,13 @@ import AppDetails from './components/AppDetails';
 import AppHeader from './components/AppHeader';
 import AppCollections from './components/AppCollections';
 
-function HomePage({ country }) {
+function HomePage({ country, onCountryChange }) {
   return (
     <Box sx={{ my: 4 }}>
       <Typography variant="h3" component="h1" gutterBottom align="center">
         App Store Explorer
       </Typography>
-      <SearchBar country={country} />
+      <SearchBar country={country} onCountryChange={onCountryChange} />
       <AppCollections country={country} />
     </Box>
   );
@@ -49,13 +49,10 @@ function App() {
           pt: { xs: 2, sm: 3 },
           pb: { xs: 4, sm: 6 }
         }}>
-          <AppHeader 
-            selectedCountry={selectedCountry} 
-            onCountryChange={handleCountryChange} 
-          />
+          <AppHeader />
           <Container maxWidth="lg" sx={{ mt: { xs: 2, sm: 4 } }}>
             <Routes>
-              <Route path="/" element={<HomePage country={selectedCountry} />} />
+              <Route path="/" element={<HomePage country={selectedCountry} onCountryChange={handleCountryChange} />} />
               <Route path="/app/:id" element={<AppDetails country={selectedCountry} />} />
             </Routes>
           </Container>

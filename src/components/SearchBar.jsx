@@ -7,10 +7,11 @@ import {
   Avatar,
   Stack,
 } from '@mui/material';
+import CountrySelector from './CountrySelector';
 import { useNavigate } from 'react-router-dom';
 import { buildApiUrl } from '../config';
 
-function SearchBar({ country }) {
+function SearchBar({ country, onCountryChange }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState([]);
@@ -55,7 +56,9 @@ function SearchBar({ country }) {
   }, [inputValue]);
 
   return (
-    <Autocomplete
+    <Stack direction="row" spacing={2} alignItems="center">
+      <Box sx={{ flexGrow: 1 }}>
+        <Autocomplete
         sx={{
           flex: 1,
           '& .MuiOutlinedInput-root': {
@@ -119,6 +122,12 @@ function SearchBar({ country }) {
         </Box>
       )}
     />
+      </Box>
+      <CountrySelector
+        value={country}
+        onChange={onCountryChange}
+      />
+    </Stack>
   );
 }
 

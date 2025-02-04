@@ -23,7 +23,7 @@ import {
   CircularProgress,
   Container,
 } from '@mui/material';
-import { Download, PhoneIphone, ArrowBack, Language } from '@mui/icons-material';
+import { Download, PhoneIphone, ArrowBack, Language, Public } from '@mui/icons-material';
 import CollapsibleSection from './CollapsibleSection';
 
 function AppDetails() {
@@ -39,6 +39,46 @@ function AppDetails() {
   const [error, setError] = useState(null);
   const [selectedLang, setSelectedLang] = useState('en');
   const [selectedCountry, setSelectedCountry] = useState('US');
+  const [availableCountries, setAvailableCountries] = useState([]);
+  const [loadingCountries, setLoadingCountries] = useState(true);
+
+  // Check app availability in different countries
+  useEffect(() => {
+    const checkCountryAvailability = async () => {
+      setLoadingCountries(true);
+      const available = [];
+      
+      const TOP_30_COUNTRIES = {
+        'US': 'United States', 'CN': 'China', 'JP': 'Japan', 'GB': 'United Kingdom',
+        'DE': 'Germany', 'FR': 'France', 'IT': 'Italy', 'CA': 'Canada',
+        'KR': 'South Korea', 'AU': 'Australia', 'ES': 'Spain', 'BR': 'Brazil',
+        'RU': 'Russia', 'IN': 'India', 'MX': 'Mexico', 'NL': 'Netherlands',
+        'TR': 'Turkey', 'CH': 'Switzerland', 'SE': 'Sweden', 'PL': 'Poland',
+        'BE': 'Belgium', 'TW': 'Taiwan', 'ID': 'Indonesia', 'SA': 'Saudi Arabia',
+        'SG': 'Singapore', 'HK': 'Hong Kong', 'AE': 'United Arab Emirates',
+        'DK': 'Denmark', 'NO': 'Norway', 'FI': 'Finland'
+      };
+
+      for (const [code, name] of Object.entries(TOP_30_COUNTRIES)) {
+        try {
+          const response = await fetch(`https://itunes.apple.com/${code}/lookup?id=${id}`);
+          const data = await response.json();
+          if (data.resultCount > 0) {
+            available.push({ code, name });
+          }
+        } catch (error) {
+          console.error(`Error checking availability for ${name}:`, error);
+        }
+      }
+
+      setAvailableCountries(available);
+      setLoadingCountries(false);
+    };
+
+    if (id) {
+      checkCountryAvailability();
+    }
+  }, [id]);
 
   // Set initial language from URL params
   useEffect(() => {
@@ -321,6 +361,43 @@ function AppDetails() {
                   </Typography>
                   <RatingsHistogram histogram={details?.ratings?.histogram || {}} />
                 </Paper>
+
+                {/* Countries - Collapsible */}
+                <CollapsibleSection
+                  title={`Available Countries (${availableCountries.length})`}
+                  icon={<Public />}
+                  defaultExpanded={false}
+                  titleVariant="subtitle1"
+                >
+                  <Paper variant="outlined" sx={{ p: 2 }}>
+                    {loadingCountries ? (
+                      <Box display="flex" justifyContent="center" p={2}>
+                        <CircularProgress size={24} />
+                      </Box>
+                    ) : (
+                      <Grid container spacing={1}>
+                        {availableCountries.map(({ code, name }) => {
+                          const FlagComponent = flags[code];
+                          return (
+                            <Grid item key={code}>
+                              <Chip
+                                icon={FlagComponent ? <FlagComponent style={{ width: '16px', marginLeft: '8px' }} /> : null}
+                                label={name}
+                                variant={code === selectedCountry ? "filled" : "outlined"}
+                                size="small"
+                                onClick={() => {
+                                  const searchParams = new URLSearchParams(window.location.search);
+                                  searchParams.set('country', code);
+                                  window.location.search = searchParams.toString();
+                                }}
+                              />
+                            </Grid>
+                          );
+                        })}
+                      </Grid>
+                    )}
+                  </Paper>
+                </CollapsibleSection>
 
                 {/* Languages - Collapsible */}
                 {details.languages && details.languages.length > 0 && (

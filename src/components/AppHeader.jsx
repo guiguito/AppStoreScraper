@@ -2,9 +2,9 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Box, Container } from '@mui/material';
 import { Apps as AppsIcon } from '@mui/icons-material';
-import CountrySelector from './CountrySelector';
 
-function AppHeader({ selectedCountry, onCountryChange }) {
+
+function AppHeader() {
   return (
     <AppBar position="static" color="transparent" elevation={0}>
       <Container>
@@ -31,10 +31,6 @@ function AppHeader({ selectedCountry, onCountryChange }) {
             </Typography>
           </Link>
           <Box sx={{ flexGrow: 1 }} />
-          <CountrySelector
-            value={selectedCountry}
-            onChange={onCountryChange}
-          />
         </Toolbar>
       </Container>
     </AppBar>

@@ -79,3 +79,7 @@ npm install
 ```bash
 npm run serve
 ```
+
+Trick to get the countries where an app is available from here:
+https://gist.github.com/milanpanchal/4603204987bb58548c2bc57b9f03fc3e
+
