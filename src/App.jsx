@@ -6,6 +6,8 @@ import SearchBar from './components/SearchBar';
 import AppDetails from './components/AppDetails';
 import AppHeader from './components/AppHeader';
 import AppCollections from './components/AppCollections';
+import ReviewsDetails from './components/ReviewsDetails';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function HomePage({ country, onCountryChange }) {
   return (
@@ -51,10 +53,13 @@ function App() {
         }}>
           <AppHeader />
           <Container maxWidth="lg" sx={{ mt: { xs: 2, sm: 4 } }}>
-            <Routes>
-              <Route path="/" element={<HomePage country={selectedCountry} onCountryChange={handleCountryChange} />} />
-              <Route path="/app/:id" element={<AppDetails country={selectedCountry} />} />
-            </Routes>
+            <ErrorBoundary>
+              <Routes>
+                <Route path="/" element={<HomePage country={selectedCountry} onCountryChange={handleCountryChange} />} />
+                <Route path="/app/:id" element={<AppDetails country={selectedCountry} />} />
+                <Route path="/app/:id/reviews" element={<ReviewsDetails />} />
+              </Routes>
+            </ErrorBoundary>
           </Container>
         </Box>
       </BrowserRouter>

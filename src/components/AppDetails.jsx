@@ -4,6 +4,7 @@ import { buildApiUrl } from '../config';
 import ScreenshotGallery from './ScreenshotGallery';
 import RatingsHistogram from './RatingsHistogram';
 import * as flags from 'country-flag-icons/react/3x2';
+import { normalizeCountryCode, isValidCountryCode } from '../utils/countryUtils';
 import {
   Card,
   CardContent,
@@ -26,7 +27,7 @@ import {
 import { Download, PhoneIphone, ArrowBack, Language, Public } from '@mui/icons-material';
 import CollapsibleSection from './CollapsibleSection';
 
-function AppDetails() {
+function AppDetails({ country: initialCountry }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [details, setDetails] = useState(null);
@@ -42,18 +43,22 @@ function AppDetails() {
   const [availableCountries, setAvailableCountries] = useState([]);
   const [loadingCountries, setLoadingCountries] = useState(true);
 
-  // Set initial language from URL params
+  // Set initial language and country from URL params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const langParam = params.get('lang');
     const countryParam = params.get('country');
-    if (langParam) {
-      setSelectedLang(langParam);
+    
+    // Update URL if initial country is provided but not in URL
+    if (!countryParam && initialCountry) {
+      const normalizedCountry = normalizeCountryCode(initialCountry);
+      params.set('country', normalizedCountry);
+      navigate(`${window.location.pathname}?${params.toString()}`, { replace: true });
     }
-    if (countryParam) {
-      setSelectedCountry(countryParam);
-    }
-  }, []);
+
+    setSelectedLang(langParam || 'en');
+    setSelectedCountry(normalizeCountryCode(countryParam || initialCountry || 'US'));
+  }, [initialCountry, navigate]);
 
   // Fetch app details and similar apps
   useEffect(() => {
@@ -112,7 +117,7 @@ function AppDetails() {
     return () => controller.abort();
   }, [id, selectedLang, selectedCountry]);
 
-  // Fetch reviews with pagination
+  // Fetch initial reviews (max 10)
   useEffect(() => {
     if (!id) return;
 
@@ -126,7 +131,8 @@ function AppDetails() {
           buildApiUrl(`/reviews/${id}`, {
             lang: selectedLang,
             country: selectedCountry,
-            page: reviewPage
+            limit: 10,
+            sort: 'recent'
           }),
           { signal }
         );
@@ -139,7 +145,7 @@ function AppDetails() {
         const reviewsData = await response.json();
 
         if (!signal.aborted) {
-          setReviews(prevReviews => reviewPage === 1 ? reviewsData : [...prevReviews, ...reviewsData]);
+          setReviews(reviewsData);
         }
       } catch (error) {
         if (!signal.aborted) {
@@ -155,43 +161,7 @@ function AppDetails() {
     fetchReviews();
 
     return () => controller.abort();
-  }, [id, selectedLang, selectedCountry, reviewPage]); // Only re-run if id, selectedLang, or selectedCountry changes
-
-  const handleDownloadReviews = async () => {
-    try {
-      const response = await fetch(
-        buildApiUrl(`/reviews/${id}/csv`, {
-          lang: selectedLang,
-          country: selectedCountry
-        })
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to download reviews: ${response.statusText}`);
-      }
-
-      // Get the filename from the Content-Disposition header if available
-      const contentDisposition = response.headers.get('Content-Disposition');
-      const filenameMatch = contentDisposition && contentDisposition.match(/filename=([^;]+)/); 
-      const filename = filenameMatch ? filenameMatch[1] : `reviews-${id}.csv`;
-
-      // Convert the response to a blob
-      const blob = await response.blob();
-      
-      // Create a download link and trigger it
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Error downloading reviews:', error);
-      setError(error.message);
-    }
-  };
+  }, [id, selectedLang, selectedCountry]);
 
   if (error) {
     return (
@@ -350,9 +320,13 @@ function AppDetails() {
                                 variant={code === selectedCountry ? "filled" : "outlined"}
                                 size="small"
                                 onClick={() => {
+                                  if (!isValidCountryCode(code)) {
+                                    console.warn(`Invalid country code: ${code}, ignoring click`);
+                                    return;
+                                  }
                                   const searchParams = new URLSearchParams(window.location.search);
-                                  searchParams.set('country', code);
-                                  window.location.search = searchParams.toString();
+                                  searchParams.set('country', normalizeCountryCode(code));
+                                  navigate(`${window.location.pathname}?${searchParams.toString()}`);
                                 }}
                               />
                             </Grid>
@@ -574,15 +548,14 @@ function AppDetails() {
                 <Box sx={{ mb: 4 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                     <Typography variant="h6">
-                      Reviews
+                      Latest Reviews
                     </Typography>
                     <Button
-                      variant="outlined"
-                      startIcon={<Download />}
-                      onClick={handleDownloadReviews}
+                      variant="contained"
+                      onClick={() => navigate(`/app/${id}/reviews?country=${selectedCountry}&lang=${selectedLang}`)}
                       size="small"
                     >
-                      Download Reviews
+                      View Full Analysis
                     </Button>
                   </Box>
                   <Paper variant="outlined">
@@ -620,10 +593,9 @@ function AppDetails() {
                   <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
                     <Button
                       variant="outlined"
-                      onClick={() => setReviewPage(prev => prev + 1)}
-                      disabled={loadingReviews || reviews.length < 10}
+                      onClick={() => navigate(`/app/${id}/reviews?country=${selectedCountry}&lang=${selectedLang}`)}
                     >
-                      Load More Reviews
+                      View All Reviews
                     </Button>
                   </Box>
                 </Box>

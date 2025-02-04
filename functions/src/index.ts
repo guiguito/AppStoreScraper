@@ -38,37 +38,86 @@ app.use((req, res, next) => {
 app.use(express.json());
 
 // Country utilities
+// Map of supported ISO 3166-1 alpha-2 country codes to app-store-client Country enum
 const countryMap: { [key: string]: Country } = {
-  'US': Country.US,
-  'GB': Country.GB,
-  'FR': Country.FR,
-  'DE': Country.DE,
-  'IT': Country.IT,
-  'ES': Country.ES,
-  'CA': Country.CA,
-  'CN': Country.CN,
-  'JP': Country.JP,
-  'KR': Country.KR,
+  'US': Country.US,   // United States
+  'GB': Country.GB,   // United Kingdom
+  'FR': Country.FR,   // France
+  'DE': Country.DE,   // Germany
+  'IT': Country.IT,   // Italy
+  'ES': Country.ES,   // Spain
+  'CA': Country.CA,   // Canada
+  'CN': Country.CN,   // China
+  'JP': Country.JP,   // Japan
+  'KR': Country.KR,   // South Korea
+  'AU': Country.AU,   // Australia
+  'BR': Country.BR,   // Brazil
+  'MX': Country.MX,   // Mexico
+  'NL': Country.NL,   // Netherlands
+  'RU': Country.RU,   // Russia
+  'CH': Country.CH,   // Switzerland
+  'SE': Country.SE,   // Sweden
+  'PL': Country.PL,   // Poland
+  'BE': Country.BE,   // Belgium
+  'IN': Country.IN,   // India
+  'ID': Country.ID,   // Indonesia
+  'TR': Country.TR,   // Turkey
+  'TW': Country.TW,   // Taiwan
+  'SA': Country.SA,   // Saudi Arabia
+  'SG': Country.SG,   // Singapore
+  'HK': Country.HK,   // Hong Kong
+  'AE': Country.AE,   // United Arab Emirates
+  'DK': Country.DK,   // Denmark
+  'NO': Country.NO,   // Norway
+  'FI': Country.FI,   // Finland
 };
 
 const getCountryCode = (userCountry = 'US'): Country => {
   const countryCode = userCountry.toUpperCase();
-  return countryMap[countryCode] || Country.US;
+  if (!isValidCountry(countryCode)) {
+    logger.warn(`Invalid country code: ${countryCode}, falling back to US`);
+    return Country.US;
+  }
+  return countryMap[countryCode];
 };
 
 const isValidCountry = (countryCode: string): boolean => {
-  return countryCode in countryMap;
+  const normalizedCode = countryCode.toUpperCase();
+  return normalizedCode in countryMap && normalizedCode.length === 2;
 };
 
-const TOP_30_COUNTRIES = {
-  'US': 'United States', 'CN': 'China', 'JP': 'Japan', 'GB': 'United Kingdom',
-  'DE': 'Germany', 'FR': 'France', 'IT': 'Italy', 'CA': 'Canada',
-  'KR': 'South Korea', 'AU': 'Australia', 'ES': 'Spain', 'BR': 'Brazil',
-  'RU': 'Russia', 'IN': 'India', 'MX': 'Mexico', 'NL': 'Netherlands',
-  'TR': 'Turkey', 'CH': 'Switzerland', 'SE': 'Sweden', 'PL': 'Poland',
-  'BE': 'Belgium', 'TW': 'Taiwan', 'ID': 'Indonesia', 'SA': 'Saudi Arabia',
-  'SG': 'Singapore', 'HK': 'Hong Kong', 'AE': 'United Arab Emirates',
-  'DK': 'Denmark', 'NO': 'Norway', 'FI': 'Finland',
+// ISO 3166-1 alpha-2 country codes with their display names
+const TOP_30_COUNTRIES: { [key: string]: string } = {
+  'AE': 'United Arab Emirates',
+  'AU': 'Australia',
+  'BE': 'Belgium',
+  'BR': 'Brazil',
+  'CA': 'Canada',
+  'CH': 'Switzerland',
+  'CN': 'China',
+  'DE': 'Germany',
+  'DK': 'Denmark',
+  'ES': 'Spain',
+  'FI': 'Finland',
+  'FR': 'France',
+  'GB': 'United Kingdom',
+  'HK': 'Hong Kong',
+  'ID': 'Indonesia',
+  'IN': 'India',
+  'IT': 'Italy',
+  'JP': 'Japan',
+  'KR': 'South Korea',
+  'MX': 'Mexico',
+  'NL': 'Netherlands',
+  'NO': 'Norway',
+  'PL': 'Poland',
+  'RU': 'Russia',
+  'SA': 'Saudi Arabia',
+  'SE': 'Sweden',
+  'SG': 'Singapore',
+  'TR': 'Turkey',
+  'TW': 'Taiwan',
+  'US': 'United States',
 };
 const fetchAvailableCountries = async (id: string): Promise<{code: string, name: string}[]> => {
   const available: {code: string, name: string}[] = [];
@@ -336,14 +385,96 @@ app.get('/reviews/:id', validateCommonParams, async (
   try {
     const { id } = req.params;
     const { lang, country } = req.validatedParams!;
+    const limit = parseInt(req.query.limit?.toString() || '50');
 
-    const results = await client.reviews({
-      id: id.toString(),
-      country: getCountryCode(country),
-      language: lang,
+    // Array to store all reviews
+    let allReviews: Review[] = [];
+    let page = 0;
+    let hasMore = true;
+
+    // Fetch reviews until we get the desired limit
+    while (hasMore && allReviews.length < limit) {
+      try {
+        const results = await client.reviews({
+          id: id.toString(),
+          country: getCountryCode(country),
+          language: lang,
+          page,
+          sort: Sort.RECENT,
+        });
+
+        if (results && results.length > 0) {
+          allReviews = [...allReviews, ...results];
+          page++;
+        } else {
+          hasMore = false;
+        }
+      } catch (error) {
+        logger.error(`Error fetching page ${page}:`, error);
+        break;
+      }
+    }
+
+    // Trim to limit if we got more reviews than requested
+    if (allReviews.length > limit) {
+      allReviews = allReviews.slice(0, limit);
+    }
+
+    return res.json(allReviews);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.get('/reviews/:id/all', validateCommonParams, async (
+  req: ValidatedRequest,
+  res: express.Response,
+  next: express.NextFunction,
+) => {
+  try {
+    const { id } = req.params;
+    const { lang, country } = req.validatedParams!;
+    const limit = parseInt(req.query.limit?.toString() || '1000');
+
+    // Array to store all reviews
+    let allReviews: Review[] = [];
+    let page = 0;
+    let hasMore = true;
+    const MAX_PAGES = Math.ceil(limit / 50); // Each page has 50 reviews
+
+    // Fetch all pages until limit is reached
+    while (hasMore && page < MAX_PAGES && allReviews.length < limit) {
+      try {
+        const results = await client.reviews({
+          id: id.toString(),
+          country: getCountryCode(country),
+          language: lang,
+          page,
+          sort: Sort.RECENT,
+        });
+
+        if (results && results.length > 0) {
+          allReviews = [...allReviews, ...results];
+          page++;
+        } else {
+          hasMore = false;
+        }
+      } catch (error) {
+        logger.error(`Error fetching page ${page}:`, error);
+        break;
+      }
+    }
+
+    // Trim to limit if we got more reviews than requested
+    if (allReviews.length > limit) {
+      allReviews = allReviews.slice(0, limit);
+    }
+
+    return res.json({
+      reviews: allReviews,
+      total: allReviews.length,
+      hasMore: hasMore && allReviews.length === limit,
     });
-
-    return res.json(results);
   } catch (error) {
     return next(error);
   }
