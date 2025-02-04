@@ -39,13 +39,8 @@ function ReviewsDetails() {
 
   // Fetch sentiment analysis
   useEffect(() => {
-    // Reset sentiment data when country changes
-    setSentimentData(null);
-    setSentimentError(null);
-    setLoadingSentiment(false);
-
     const fetchSentiment = async () => {
-      if (!reviews.length || loadingSentiment) return;
+      if (!reviews.length) return;
       
       setLoadingSentiment(true);
       setSentimentError(null);
@@ -74,8 +69,17 @@ function ReviewsDetails() {
       }
     };
 
-    fetchSentiment();
+    if (reviews.length > 0) {
+      fetchSentiment();
+    }
   }, [id, selectedLang, selectedCountry, reviews]);
+
+  // Reset sentiment data when country or language changes
+  useEffect(() => {
+    setSentimentData(null);
+    setSentimentError(null);
+    setLoadingSentiment(true);
+  }, [selectedCountry, selectedLang]);
 
   // Fetch app details to get available countries
   useEffect(() => {
@@ -165,11 +169,6 @@ function ReviewsDetails() {
   };
 
   const handleCountryChange = (country) => {
-    // Reset sentiment data when country changes
-    setSentimentData(null);
-    setSentimentError(null);
-    setLoadingSentiment(false);
-
     const params = new URLSearchParams(searchParams);
     params.set('country', country);
     navigate(`/app/${id}/reviews?${params.toString()}`);
