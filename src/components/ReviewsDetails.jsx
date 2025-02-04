@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { buildApiUrl } from '../config';
 import * as flags from 'country-flag-icons/react/3x2';
 import { normalizeCountryCode, isValidCountryCode } from '../utils/countryUtils';
+import DailyReviewsChart from './DailyReviewsChart';
 import {
   Box,
   Container,
@@ -207,6 +208,7 @@ function ReviewsDetails() {
 
         {/* Right Column */}
         <Grid item xs={12} md={9}>
+          <DailyReviewsChart reviews={reviews} />
           <Paper variant="outlined" sx={{ p: 2 }}>
             {loading ? (
               <Box display="flex" justifyContent="center" my={4}>
