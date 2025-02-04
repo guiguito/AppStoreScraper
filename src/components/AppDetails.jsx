@@ -298,7 +298,7 @@ function AppDetails({ country: initialCountry }) {
 
                 {/* Countries - Collapsible */}
                 <CollapsibleSection
-                  title={`Available Countries (${availableCountries.length})`}
+                  title={`${availableCountries.length} available countries (${availableCountries.find(c => c.code === selectedCountry)?.name || 'Unknown'})`}
                   icon={<Public />}
                   defaultExpanded={false}
                   titleVariant="subtitle1"
@@ -324,9 +324,10 @@ function AppDetails({ country: initialCountry }) {
                                     console.warn(`Invalid country code: ${code}, ignoring click`);
                                     return;
                                   }
+                                  setSelectedCountry(code);
                                   const searchParams = new URLSearchParams(window.location.search);
                                   searchParams.set('country', normalizeCountryCode(code));
-                                  navigate(`${window.location.pathname}?${searchParams.toString()}`);
+                                  navigate(`/app/${id}?${searchParams.toString()}`);
                                 }}
                               />
                             </Grid>

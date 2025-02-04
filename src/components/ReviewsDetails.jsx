@@ -4,6 +4,7 @@ import { buildApiUrl } from '../config';
 import * as flags from 'country-flag-icons/react/3x2';
 import { normalizeCountryCode, isValidCountryCode } from '../utils/countryUtils';
 import DailyReviewsChart from './DailyReviewsChart';
+import SentimentAnalysis from './SentimentAnalysis';
 import {
   Box,
   Container,
@@ -22,6 +23,9 @@ import {
 import { Download, ArrowBack, Language } from '@mui/icons-material';
 
 function ReviewsDetails() {
+  const [sentimentData, setSentimentData] = useState(null);
+  const [loadingSentiment, setLoadingSentiment] = useState(false);
+  const [sentimentError, setSentimentError] = useState(null);
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -32,6 +36,46 @@ function ReviewsDetails() {
   const [totalReviews, setTotalReviews] = useState(0);
   const selectedCountry = normalizeCountryCode(searchParams.get('country') || 'US');
   const selectedLang = searchParams.get('lang') || 'en';
+
+  // Fetch sentiment analysis
+  useEffect(() => {
+    // Reset sentiment data when country changes
+    setSentimentData(null);
+    setSentimentError(null);
+    setLoadingSentiment(false);
+
+    const fetchSentiment = async () => {
+      if (!reviews.length || loadingSentiment) return;
+      
+      setLoadingSentiment(true);
+      setSentimentError(null);
+      
+      try {
+        const response = await fetch(
+          buildApiUrl(`/reviews/${id}/sentiment`, {
+            lang: selectedLang,
+            country: selectedCountry,
+          })
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch sentiment analysis');
+        }
+
+        const data = await response.json();
+        // Parse the response if it's a string
+        const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+        setSentimentData(parsedData);
+      } catch (error) {
+        console.error('Error fetching sentiment:', error);
+        setSentimentError(error.message);
+      } finally {
+        setLoadingSentiment(false);
+      }
+    };
+
+    fetchSentiment();
+  }, [id, selectedLang, selectedCountry, reviews]);
 
   // Fetch app details to get available countries
   useEffect(() => {
@@ -121,6 +165,11 @@ function ReviewsDetails() {
   };
 
   const handleCountryChange = (country) => {
+    // Reset sentiment data when country changes
+    setSentimentData(null);
+    setSentimentError(null);
+    setLoadingSentiment(false);
+
     const params = new URLSearchParams(searchParams);
     params.set('country', country);
     navigate(`/app/${id}/reviews?${params.toString()}`);
@@ -208,6 +257,11 @@ function ReviewsDetails() {
 
         {/* Right Column */}
         <Grid item xs={12} md={9}>
+          <SentimentAnalysis
+            data={sentimentData}
+            loading={loadingSentiment}
+            error={sentimentError}
+          />
           <DailyReviewsChart reviews={reviews} />
           <Paper variant="outlined" sx={{ p: 2 }}>
             {loading ? (

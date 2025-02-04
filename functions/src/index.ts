@@ -426,6 +426,51 @@ app.get('/reviews/:id', validateCommonParams, async (
   }
 });
 
+// Sentiment analysis endpoint
+app.get('/reviews/:id/sentiment', validateCommonParams, async (
+  req: ValidatedRequest,
+  res: express.Response,
+  next: express.NextFunction,
+) => {
+  try {
+    const { id } = req.params;
+    const { lang, country } = req.validatedParams!;
+
+    // Fetch reviews first
+    const allReviews: Review[] = [];
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore && page < 20) { // Limit to 1000 reviews (20 pages * 50 reviews)
+      try {
+        const results = await client.reviews({
+          id: id.toString(),
+          country: getCountryCode(country),
+          language: lang,
+          page,
+          sort: Sort.RECENT,
+        });
+
+        if (results && results.length > 0) {
+          allReviews.push(...results);
+          page++;
+        } else {
+          hasMore = false;
+        }
+      } catch (error) {
+        logger.error(`Error fetching page ${page}:`, error);
+        break;
+      }
+    }
+
+    // Perform sentiment analysis
+    const sentimentAnalysis = await analyzeSentiment(allReviews);
+    return res.json(sentimentAnalysis);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.get('/reviews/:id/all', validateCommonParams, async (
   req: ValidatedRequest,
   res: express.Response,
@@ -650,6 +695,126 @@ export { app };
 
 // Export the Express app as a Firebase Function
 // Configure Cloud Function with CORS settings
+// Sentiment Analysis types
+interface SentimentAnalysisResponse {
+  SentimentDistribution: {
+    Positive: number;
+    Neutral: number;
+    Negative: number;
+  };
+  TopIssues: Array<{
+    Issue: string;
+    Mentions: number;
+    Description: string;
+  }>;
+  Insights: {
+    OverallSentiment: string;
+    KeyPatterns: string[];
+  };
+}
+
+const MISTRAL_API_KEY = 'bR19XOC1oWhJ0NtW9GxQlUKoCh9blDeg';
+
+async function analyzeSentiment(reviews: any[]): Promise<SentimentAnalysisResponse> {
+  const reviewTexts = reviews.map(review => review.text || review.content).filter(Boolean);
+  const prompt = `You are a Mobile Product Manager conducting a comprehensive sentiment analysis on the reviews below.
+  Your task is to: Categorize with your own analysis (no external code and library)
+  sentiment into three distinct groups:Positive, Negative, and Neutral based on the text reviews.
+  Count the number of reviews falling into each sentiment category and present the results
+  in a structured format. Identify the top 5 recurring issues from negative and neutral reviews.
+  Summarize each issue and provide the number of occurrences.
+  Provide insights on the overall sentiment distribution and any notable patterns found in the dataset.
+
+Reviews to analyze:
+${reviewTexts.map((text, i) => `Review ${i + 1}: ${text}`).join('\n')}`;
+
+  try {
+    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${MISTRAL_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'mistral-small-2501',
+        messages: [
+          {
+            role: 'system',
+            content: 'You will analyze app store reviews and provide sentiment analysis.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            schema: {
+              title: 'SentimentAnalysis',
+              type: 'object',
+              properties: {
+                SentimentDistribution: {
+                  title: 'Sentiment Distribution',
+                  type: 'object',
+                  properties: {
+                    Positive: { title: 'Positive Reviews', type: 'integer', minimum: 0 },
+                    Neutral: { title: 'Neutral Reviews', type: 'integer', minimum: 0 },
+                    Negative: { title: 'Negative Reviews', type: 'integer', minimum: 0 },
+                  },
+                  required: ['Positive', 'Neutral', 'Negative'],
+                  additionalProperties: false,
+                },
+                TopIssues: {
+                  title: 'Top Issues',
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      Issue: { title: 'Issue', type: 'string' },
+                      Mentions: { title: 'Mentions Count', type: 'integer', minimum: 1 },
+                      Description: { title: 'Issue Description', type: 'string' },
+                    },
+                    required: ['Issue', 'Mentions', 'Description'],
+                    additionalProperties: false,
+                  },
+                },
+                Insights: {
+                  title: 'Insights',
+                  type: 'object',
+                  properties: {
+                    OverallSentiment: { title: 'Overall Sentiment Summary', type: 'string' },
+                    KeyPatterns: { title: 'Key Patterns', type: 'array', items: { type: 'string' } },
+                  },
+                  required: ['OverallSentiment', 'KeyPatterns'],
+                  additionalProperties: false,
+                },
+              },
+              required: ['SentimentDistribution', 'TopIssues', 'Insights'],
+              additionalProperties: false,
+            },
+            name: 'sentiment_analysis',
+            strict: true,
+          },
+        },
+        max_tokens: 1024,
+        temperature: 0,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Mistral API error: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return result.choices[0].message.content;
+  } catch (error) {
+    logger.error('Error analyzing sentiment:', error);
+    throw error;
+  }
+}
+
 export const api = onRequest({
   timeoutSeconds: 300,
   memory: '256MiB',
