@@ -68,7 +68,7 @@ const TOP_30_COUNTRIES = {
   'TR': 'Turkey', 'CH': 'Switzerland', 'SE': 'Sweden', 'PL': 'Poland',
   'BE': 'Belgium', 'TW': 'Taiwan', 'ID': 'Indonesia', 'SA': 'Saudi Arabia',
   'SG': 'Singapore', 'HK': 'Hong Kong', 'AE': 'United Arab Emirates',
-  'DK': 'Denmark', 'NO': 'Norway', 'FI': 'Finland'
+  'DK': 'Denmark', 'NO': 'Norway', 'FI': 'Finland',
 };
 const fetchAvailableCountries = async (id: string): Promise<{code: string, name: string}[]> => {
   const available: {code: string, name: string}[] = [];
