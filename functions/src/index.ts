@@ -60,6 +60,32 @@ const isValidCountry = (countryCode: string): boolean => {
   return countryCode in countryMap;
 };
 
+const TOP_30_COUNTRIES = {
+  'US': 'United States', 'CN': 'China', 'JP': 'Japan', 'GB': 'United Kingdom',
+  'DE': 'Germany', 'FR': 'France', 'IT': 'Italy', 'CA': 'Canada',
+  'KR': 'South Korea', 'AU': 'Australia', 'ES': 'Spain', 'BR': 'Brazil',
+  'RU': 'Russia', 'IN': 'India', 'MX': 'Mexico', 'NL': 'Netherlands',
+  'TR': 'Turkey', 'CH': 'Switzerland', 'SE': 'Sweden', 'PL': 'Poland',
+  'BE': 'Belgium', 'TW': 'Taiwan', 'ID': 'Indonesia', 'SA': 'Saudi Arabia',
+  'SG': 'Singapore', 'HK': 'Hong Kong', 'AE': 'United Arab Emirates',
+  'DK': 'Denmark', 'NO': 'Norway', 'FI': 'Finland'
+};
+const fetchAvailableCountries = async (id: string): Promise<{code: string, name: string}[]> => {
+  const available: {code: string, name: string}[] = [];
+  await Promise.all(Object.entries(TOP_30_COUNTRIES).map(async ([code, name]) => {
+    try {
+      const response = await fetch(`https://itunes.apple.com/${code}/lookup?id=${id}`);
+      const data = await response.json();
+      if(data.resultCount > 0){
+        available.push({ code, name });
+      }
+    } catch(err) {
+      console.error(`Error checking availability for ${name}:`, err);
+    }
+  }));
+  return available;
+};
+
 // Middleware
 const validateCommonParams = (
   req: express.Request,
@@ -195,10 +221,12 @@ app.get('/app/:id', validateCommonParams, async (
       logger.warn('Failed to fetch privacy data:', privacyData.reason);
     }
 
+    const availableCountries = await fetchAvailableCountries(id.toString());
     return res.json({ 
       ...appData, 
       ratings: ratingsWithPercentages,
       ...privacyInfo,
+      availableCountries,
     });
   } catch (error) {
     logger.error('Error in app details endpoint:', error);

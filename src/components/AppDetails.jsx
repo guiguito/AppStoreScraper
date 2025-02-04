@@ -42,44 +42,6 @@ function AppDetails() {
   const [availableCountries, setAvailableCountries] = useState([]);
   const [loadingCountries, setLoadingCountries] = useState(true);
 
-  // Check app availability in different countries
-  useEffect(() => {
-    const checkCountryAvailability = async () => {
-      setLoadingCountries(true);
-      const available = [];
-      
-      const TOP_30_COUNTRIES = {
-        'US': 'United States', 'CN': 'China', 'JP': 'Japan', 'GB': 'United Kingdom',
-        'DE': 'Germany', 'FR': 'France', 'IT': 'Italy', 'CA': 'Canada',
-        'KR': 'South Korea', 'AU': 'Australia', 'ES': 'Spain', 'BR': 'Brazil',
-        'RU': 'Russia', 'IN': 'India', 'MX': 'Mexico', 'NL': 'Netherlands',
-        'TR': 'Turkey', 'CH': 'Switzerland', 'SE': 'Sweden', 'PL': 'Poland',
-        'BE': 'Belgium', 'TW': 'Taiwan', 'ID': 'Indonesia', 'SA': 'Saudi Arabia',
-        'SG': 'Singapore', 'HK': 'Hong Kong', 'AE': 'United Arab Emirates',
-        'DK': 'Denmark', 'NO': 'Norway', 'FI': 'Finland'
-      };
-
-      for (const [code, name] of Object.entries(TOP_30_COUNTRIES)) {
-        try {
-          const response = await fetch(`https://itunes.apple.com/${code}/lookup?id=${id}`);
-          const data = await response.json();
-          if (data.resultCount > 0) {
-            available.push({ code, name });
-          }
-        } catch (error) {
-          console.error(`Error checking availability for ${name}:`, error);
-        }
-      }
-
-      setAvailableCountries(available);
-      setLoadingCountries(false);
-    };
-
-    if (id) {
-      checkCountryAvailability();
-    }
-  }, [id]);
-
   // Set initial language from URL params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -129,6 +91,8 @@ function AppDetails() {
           setDetails(detailsData);
           setSimilarApps(similarData);
           setDeveloperApps(developerData);
+          setAvailableCountries(detailsData.availableCountries || []);
+          setLoadingCountries(false);
         }
       } catch (error) {
         if (!signal.aborted) {
