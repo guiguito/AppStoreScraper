@@ -112,10 +112,11 @@ function SearchBar({ country, onCountryChange }) {
             variant="rounded" 
             sx={{ 
               width: 48, 
-              height: 48,
-              borderRadius: 2,
-              bgcolor: 'background.paper',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+              height: 48, 
+              borderRadius: 2, 
+              bgcolor: 'background.paper', 
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+              mr: 2
             }} 
           />
           {option.title}
