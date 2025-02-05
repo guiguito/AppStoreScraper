@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { buildApiUrl } from '../config';
 import ScreenshotGallery from './ScreenshotGallery';
 import CenteredLoader from './CenteredLoader';
+import { useDataCache } from '../hooks/useDataCache';
 import RatingsHistogram from './RatingsHistogram';
 import * as flags from 'country-flag-icons/react/3x2';
 import { normalizeCountryCode, isValidCountryCode } from '../utils/countryUtils';
@@ -61,24 +62,50 @@ function AppDetails({ country: initialCountry }) {
     setSelectedCountry(normalizeCountryCode(countryParam || initialCountry || 'US'));
   }, [initialCountry, navigate]);
 
+  const { getCachedData, setCachedData } = useDataCache();
+
   // Fetch app details and similar apps
   useEffect(() => {
+    let mounted = true;
     const controller = new AbortController();
     const signal = controller.signal;
 
     const fetchData = async () => {
       if (!id) return;
       
+      const params = { lang: selectedLang, country: selectedCountry };
+      
+      // Check cache for all data
+      const cachedDetails = getCachedData(`/app/${id}`, params);
+      const cachedSimilar = getCachedData(`/similar/${id}`, params);
+      const cachedDeveloper = getCachedData(`/developer-apps/${id}`, params);
+
+      // If all data is cached, use it
+      if (cachedDetails && cachedSimilar && cachedDeveloper) {
+        setDetails(cachedDetails.data);
+        setSimilarApps(cachedSimilar.data);
+        setDeveloperApps(cachedDeveloper.data);
+        setAvailableCountries(cachedDetails.data.availableCountries || []);
+        return;
+      }
+      
       setLoading(true);
       setError(null);
 
       try {
-        // Fetch app details, similar apps, and developer apps in parallel
-        const responses = await Promise.all([
-          fetch(buildApiUrl(`/app/${id}`, { lang: selectedLang, country: selectedCountry }), { signal }),
-          fetch(buildApiUrl(`/similar/${id}`, { lang: selectedLang, country: selectedCountry }), { signal }),
-          fetch(buildApiUrl(`/developer-apps/${id}`, { lang: selectedLang, country: selectedCountry }), { signal })
-        ]);
+        // Only fetch what's not cached
+        const fetchPromises = [];
+        if (!cachedDetails) {
+          fetchPromises.push(fetch(buildApiUrl(`/app/${id}`, params), { signal }));
+        }
+        if (!cachedSimilar) {
+          fetchPromises.push(fetch(buildApiUrl(`/similar/${id}`, params), { signal }));
+        }
+        if (!cachedDeveloper) {
+          fetchPromises.push(fetch(buildApiUrl(`/developer-apps/${id}`, params), { signal }));
+        }
+
+        const responses = await Promise.all(fetchPromises);
 
         // Check if any response is not ok
         const errorResponse = responses.find(response => !response.ok);
@@ -87,19 +114,37 @@ function AppDetails({ country: initialCountry }) {
           throw new Error(errorData.error || 'Failed to fetch data');
         }
 
-        // Parse all responses in parallel
-        const [detailsData, similarData, developerData] = await Promise.all(
-          responses.map(response => response.json())
-        );
+        // Parse responses and update cache
+        const parsedData = await Promise.all(responses.map(response => response.json()));
+        let currentIndex = 0;
 
-        // Only update state if not aborted
-        if (!signal.aborted) {
+        if (!cachedDetails) {
+          const detailsData = parsedData[currentIndex++];
           setDetails(detailsData);
-          setSimilarApps(similarData);
-          setDeveloperApps(developerData);
           setAvailableCountries(detailsData.availableCountries || []);
-          setLoadingCountries(false);
+          setCachedData(`/app/${id}`, params, detailsData);
+        } else {
+          setDetails(cachedDetails.data);
+          setAvailableCountries(cachedDetails.data.availableCountries || []);
         }
+
+        if (!cachedSimilar) {
+          const similarData = parsedData[currentIndex++];
+          setSimilarApps(similarData);
+          setCachedData(`/similar/${id}`, params, similarData);
+        } else {
+          setSimilarApps(cachedSimilar.data);
+        }
+
+        if (!cachedDeveloper) {
+          const developerData = parsedData[currentIndex];
+          setDeveloperApps(developerData);
+          setCachedData(`/developer-apps/${id}`, params, developerData);
+        } else {
+          setDeveloperApps(cachedDeveloper.data);
+        }
+        
+        setLoadingCountries(false);
       } catch (error) {
         if (!signal.aborted) {
           console.error('Error fetching data:', error);
@@ -112,11 +157,16 @@ function AppDetails({ country: initialCountry }) {
       }
     };
 
-    fetchData();
+    if (mounted) {
+      fetchData();
+    }
 
     // Cleanup function to abort fetch on unmount or deps change
-    return () => controller.abort();
-  }, [id, selectedLang, selectedCountry]);
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
+  }, [id, selectedLang, selectedCountry, getCachedData, setCachedData]);
 
   // Fetch initial reviews (max 10)
   useEffect(() => {
@@ -126,15 +176,23 @@ function AppDetails({ country: initialCountry }) {
     const signal = controller.signal;
 
     const fetchReviews = async () => {
+      const params = {
+        lang: selectedLang,
+        country: selectedCountry,
+        limit: 10,
+        sort: 'recent'
+      };
+
+      const cached = getCachedData(`/reviews/${id}`, params);
+      if (cached) {
+        setReviews(cached.data);
+        return;
+      }
+
       setLoadingReviews(true);
       try {
         const response = await fetch(
-          buildApiUrl(`/reviews/${id}`, {
-            lang: selectedLang,
-            country: selectedCountry,
-            limit: 10,
-            sort: 'recent'
-          }),
+          buildApiUrl(`/reviews/${id}`, params),
           { signal }
         );
 
@@ -147,6 +205,7 @@ function AppDetails({ country: initialCountry }) {
 
         if (!signal.aborted) {
           setReviews(reviewsData);
+          setCachedData(`/reviews/${id}`, params, reviewsData);
         }
       } catch (error) {
         if (!signal.aborted) {
@@ -162,7 +221,7 @@ function AppDetails({ country: initialCountry }) {
     fetchReviews();
 
     return () => controller.abort();
-  }, [id, selectedLang, selectedCountry]);
+  }, [id, selectedLang, selectedCountry, getCachedData, setCachedData]);
 
   if (error) {
     return (

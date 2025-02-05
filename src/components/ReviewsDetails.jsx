@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { buildApiUrl } from '../config';
 import * as flags from 'country-flag-icons/react/3x2';
 import CenteredLoader from './CenteredLoader';
+import { useDataCache } from '../hooks/useDataCache';
 import { normalizeCountryCode, isValidCountryCode } from '../utils/countryUtils';
 import DailyReviewsChart from './DailyReviewsChart';
 import SentimentAnalysis from './SentimentAnalysis';
@@ -24,6 +25,7 @@ import {
 import { Download, ArrowBack, Language } from '@mui/icons-material';
 
 function ReviewsDetails() {
+  const { getCachedData, setCachedData } = useDataCache();
   const [sentimentData, setSentimentData] = useState(null);
   const [loadingSentiment, setLoadingSentiment] = useState(false);
   const [sentimentError, setSentimentError] = useState(null);
@@ -43,15 +45,24 @@ function ReviewsDetails() {
     const fetchSentiment = async () => {
       if (!reviews.length) return;
       
+      const params = {
+        lang: selectedLang,
+        country: selectedCountry
+      };
+
+      // Check cache first
+      const cached = getCachedData(`/reviews/${id}/sentiment`, params);
+      if (cached) {
+        setSentimentData(cached.data);
+        return;
+      }
+      
       setLoadingSentiment(true);
       setSentimentError(null);
       
       try {
         const response = await fetch(
-          buildApiUrl(`/reviews/${id}/sentiment`, {
-            lang: selectedLang,
-            country: selectedCountry,
-          })
+          buildApiUrl(`/reviews/${id}/sentiment`, params)
         );
 
         if (!response.ok) {
@@ -62,6 +73,8 @@ function ReviewsDetails() {
         // Parse the response if it's a string
         const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
         setSentimentData(parsedData);
+        // Cache the parsed data
+        setCachedData(`/reviews/${id}/sentiment`, params, parsedData);
       } catch (error) {
         console.error('Error fetching sentiment:', error);
         setSentimentError(error.message);
@@ -73,25 +86,35 @@ function ReviewsDetails() {
     if (reviews.length > 0) {
       fetchSentiment();
     }
-  }, [id, selectedLang, selectedCountry, reviews]);
+  }, [id, selectedLang, selectedCountry, reviews, getCachedData, setCachedData]);
 
-  // Reset sentiment data when country or language changes
+  // Reset states when country or language changes
   useEffect(() => {
     setSentimentData(null);
     setSentimentError(null);
-    setLoadingSentiment(true);
+    setLoadingSentiment(false); // Start as false since we don't have reviews yet
+    setLoading(true); // Indicate we're loading new data
   }, [selectedCountry, selectedLang]);
 
   // Fetch app details to get available countries
   useEffect(() => {
     const fetchAppDetails = async () => {
+      const params = { lang: selectedLang, country: selectedCountry };
+      const cached = getCachedData(`/app/${id}`, params);
+
+      if (cached) {
+        setAvailableCountries(cached.data.availableCountries || []);
+        return;
+      }
+
       try {
-        const response = await fetch(buildApiUrl(`/app/${id}`, { lang: selectedLang, country: selectedCountry }));
+        const response = await fetch(buildApiUrl(`/app/${id}`, params));
         if (!response.ok) {
           throw new Error('Failed to fetch app details');
         }
         const data = await response.json();
         setAvailableCountries(data.availableCountries || []);
+        setCachedData(`/app/${id}`, params, data);
       } catch (error) {
         console.error('Error fetching app details:', error);
         setError(error.message);
@@ -103,16 +126,29 @@ function ReviewsDetails() {
 
   // Fetch reviews (up to 1000)
   useEffect(() => {
+    let mounted = true;
+    
     const fetchReviews = async () => {
-      setLoading(true);
+      const params = {
+        lang: selectedLang,
+        country: selectedCountry,
+        limit: 1000
+      };
+      
+      // Only check cache if we're still mounted
+      if (mounted) {
+        const cached = getCachedData(`/reviews/${id}/all`, params);
+        if (cached) {
+          setReviews(cached.data.reviews);
+          setTotalReviews(cached.data.total);
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (!mounted) return;
       try {
-        const response = await fetch(
-          buildApiUrl(`/reviews/${id}/all`, {
-            lang: selectedLang,
-            country: selectedCountry,
-            limit: 1000
-          })
-        );
+        const response = await fetch(buildApiUrl(`/reviews/${id}/all`, params));
 
         if (!response.ok) {
           const errorData = await response.json();
@@ -123,6 +159,7 @@ function ReviewsDetails() {
         if (data && data.reviews) {
           setReviews(data.reviews);
           setTotalReviews(data.total);
+          setCachedData(`/reviews/${id}/all`, params, data);
         } else {
           throw new Error('Invalid response format from server');
         }
@@ -170,6 +207,15 @@ function ReviewsDetails() {
   };
 
   const handleCountryChange = (country) => {
+    // Reset states before changing country
+    setReviews([]);
+    setSentimentData(null);
+    setTotalReviews(0);
+    setError(null);
+    setLoading(true);
+    setSentimentError(null);
+    
+    // Update URL with new country
     const params = new URLSearchParams(searchParams);
     params.set('country', country);
     navigate(`/app/${id}/reviews?${params.toString()}`, { preventScrollReset: true });
