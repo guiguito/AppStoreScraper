@@ -252,7 +252,7 @@ function ReviewsDetails() {
       <Grid container spacing={3}>
         {/* Left Column */}
         <Grid item xs={12} md={3}>
-          <Box sx={{ position: 'sticky', top: 24 }}>
+          <Box>
             <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
               <Typography variant="h6" gutterBottom>
                 Reviews Analysis

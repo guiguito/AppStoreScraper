@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { buildApiUrl } from '../config';
 import { 
   Chip, 
   Box, 
@@ -59,7 +60,11 @@ function CategoryChips({ country }) {
     setSelectedCategory(category);
     setLoading(true);
     try {
-      const response = await fetch(`/api/category-apps?categoryId=${category.id}&country=${country}&lang=en`);
+      const response = await fetch(buildApiUrl('/category-apps', {
+        categoryId: category.id,
+        country: country,
+        lang: 'en'
+      }));
       const data = await response.json();
       setApps(data);
     } catch (error) {
