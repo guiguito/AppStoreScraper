@@ -76,7 +76,13 @@ function CategoryChips({ country }) {
 
   return (
     <Box>
-      <Typography variant="h6" color="text.primary" gutterBottom sx={{ mt: 4, mb: 2 }}>
+      <Typography variant="h6" gutterBottom sx={{ 
+        mt: 4, 
+        mb: 2,
+        color: 'primary.main',
+        fontWeight: 600,
+        letterSpacing: '0.02em'
+      }}>
         Popular Categories
       </Typography>
       <Box sx={{ 

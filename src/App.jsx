@@ -10,6 +10,7 @@ import AppCollections from './components/AppCollections';
 import ReviewsDetails from './components/ReviewsDetails';
 import ErrorBoundary from './components/ErrorBoundary';
 import CategoryChips from './components/CategoryChips';
+import { countries } from './components/CountrySelector';
 
 function HomePage({ country, onCountryChange }) {
   return (
@@ -21,8 +22,20 @@ function HomePage({ country, onCountryChange }) {
   );
 }
 
+// Get country from browser locale, defaulting to US if not found
+const getInitialCountry = () => {
+  try {
+    const browserLocale = navigator.language || navigator.userLanguage;
+    const countryCode = browserLocale.split('-')[1] || browserLocale.toUpperCase();
+    // Check if the country is in our supported list
+    return countries[countryCode] ? countryCode : 'US';
+  } catch (error) {
+    return 'US';
+  }
+};
+
 function App() {
-  const [selectedCountry, setSelectedCountry] = useState('US');
+  const [selectedCountry, setSelectedCountry] = useState(getInitialCountry());
   const [mode, setMode] = useState(() => {
     const savedMode = localStorage.getItem('theme-mode');
     return savedMode || 'light';

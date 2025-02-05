@@ -3,7 +3,7 @@ import { Select, MenuItem, Box } from '@mui/material';
 import Flag from 'react-world-flags';
 
 // Map of countries with their codes and names
-const countries = {
+export const countries = {
   'US': 'United States',
   'CN': 'China',
   'JP': 'Japan',
