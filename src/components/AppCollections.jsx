@@ -65,7 +65,19 @@ function AppCollections({ country }) {
               variant="rounded"
               sx={{ width: 64, height: 64 }}
             />
-            <Typography variant="subtitle2" align="center" noWrap>
+            <Typography 
+              variant="subtitle2" 
+              align="center" 
+              sx={{ 
+                minHeight: '2.4em',
+                lineHeight: '1.2em',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
               {app.title}
             </Typography>
             <Typography variant="caption" color="text.secondary" noWrap>
