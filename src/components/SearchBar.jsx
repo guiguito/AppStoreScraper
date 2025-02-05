@@ -57,7 +57,17 @@ function SearchBar({ country, onCountryChange }) {
   }, [inputValue]);
 
   return (
-    <Stack direction="row" spacing={2} alignItems="center">
+    <Stack 
+      direction="row" 
+      spacing={2} 
+      alignItems="center" 
+      sx={{ 
+        width: '100%',
+        maxWidth: '70%',
+        mx: 'auto',
+        mb: 6
+      }}
+    >
       <Box sx={{ flexGrow: 1 }}>
         <Autocomplete
         sx={{

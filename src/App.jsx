@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Link } from 'react-router-dom';
 import { Container, Box, ThemeProvider, CssBaseline, Typography, IconButton } from '@mui/material';
 import { Brightness4, Brightness7 } from '@mui/icons-material';
 import { createAppTheme } from './theme';
@@ -14,7 +14,42 @@ import { countries } from './components/CountrySelector';
 
 function HomePage({ country, onCountryChange }) {
   return (
-    <Box sx={{ my: 4 }}>
+    <Box sx={{ mb: 4 }}>
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          alignItems: 'center',
+          mb: 8
+        }}
+      >
+        <img 
+          src="/assets/icon.png" 
+          alt="AppScope Logo" 
+          style={{ 
+            height: 160,
+            marginBottom: '2rem',
+            filter: 'drop-shadow(0 8px 16px rgba(0, 0, 0, 0.15))'
+          }} 
+        />
+        <Typography 
+          variant="h2" 
+          component="h1" 
+          sx={{ 
+            fontFamily: '"Outfit", sans-serif',
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
+            background: (theme) => `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            mb: 3,
+            fontSize: { xs: '3rem', sm: '4.5rem' }
+          }}
+        >
+          AppScope
+        </Typography>
+      </Box>
       <SearchBar country={country} onCountryChange={onCountryChange} />
       <CategoryChips country={country} />
       <AppCollections country={country} />
@@ -34,7 +69,10 @@ const getInitialCountry = () => {
   }
 };
 
-function App() {
+function AppContent() {
+  const location = useLocation();
+  const isHome = location.pathname === '/';
+
   const [selectedCountry, setSelectedCountry] = useState(getInitialCountry());
   const [mode, setMode] = useState(() => {
     const savedMode = localStorage.getItem('theme-mode');
@@ -69,53 +107,69 @@ function App() {
   return (
     <ThemeProvider theme={createAppTheme(mode)}>
       <CssBaseline />
-      <BrowserRouter>
-        <Box
+      <Box
           component="header"
           sx={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             p: 2,
-            borderBottom: 1,
+            borderBottom: !isHome ? 1 : 0,
             borderColor: 'divider'
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <img src="/assets/icon-low.png" alt="AppScope Logo" style={{ height: 40 }} />
-            <Typography 
-              variant="h5" 
-              component="h1" 
-              sx={{ 
-                fontFamily: '"Outfit", sans-serif',
-                fontWeight: 600,
-                letterSpacing: '-0.02em',
-                fontSize: '1.5rem',
-                background: (theme) => `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                '&:hover': { 
-                  cursor: 'pointer',
-                  opacity: 0.85
-                }
-              }}
-              onClick={() => window.location.href = '/'}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            {!isHome ? (
+              <Link 
+                to="/" 
+                style={{ 
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px'
+                }}
+              >
+                <img src="/assets/icon-low.png" alt="AppScope Logo" style={{ height: 40 }} />
+                <Typography 
+                  variant="h5" 
+                  component="h1" 
+                  sx={{ 
+                    fontFamily: '"Outfit", sans-serif',
+                    fontWeight: 600,
+                    letterSpacing: '-0.02em',
+                    fontSize: '1.5rem',
+                    background: (theme) => `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    '&:hover': {
+                      opacity: 0.85
+                    }
+                  }}
+                >
+                  AppScope
+                </Typography>
+              </Link>
+            ) : (
+              <div /> /* Empty div to maintain spacing when logo is hidden */
+            )}
+            <IconButton 
+              onClick={toggleColorMode} 
+              color="inherit"
+              sx={{ ml: 'auto' }}
             >
-              AppScope
-            </Typography>
+              {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+            </IconButton>
           </Box>
-          <IconButton onClick={toggleColorMode} color="inherit">
-            {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
-          </IconButton>
+
         </Box>
         <Box sx={{
           minHeight: '100vh',
           bgcolor: 'background.default',
-          pt: { xs: 2, sm: 3 },
+          pt: isHome ? { xs: 2, sm: 3 } : 0,
           pb: { xs: 4, sm: 6 }
         }}>
-          <Container maxWidth="lg" sx={{ mt: { xs: 2, sm: 4 } }}>
+          <Container maxWidth="lg" sx={{ mt: isHome ? { xs: 2, sm: 4 } : 0 }}>
             <ErrorBoundary>
               <Routes>
                 <Route path="/" element={<HomePage country={selectedCountry} onCountryChange={handleCountryChange} />} />
@@ -125,8 +179,15 @@ function App() {
             </ErrorBoundary>
           </Container>
         </Box>
-      </BrowserRouter>
     </ThemeProvider>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
 }
 

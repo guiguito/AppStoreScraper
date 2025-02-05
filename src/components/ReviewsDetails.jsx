@@ -172,7 +172,7 @@ function ReviewsDetails() {
   const handleCountryChange = (country) => {
     const params = new URLSearchParams(searchParams);
     params.set('country', country);
-    navigate(`/app/${id}/reviews?${params.toString()}`);
+    navigate(`/app/${id}/reviews?${params.toString()}`, { preventScrollReset: true });
   };
 
   if (error) {
@@ -196,7 +196,7 @@ function ReviewsDetails() {
           const params = new URLSearchParams();
           params.set('country', selectedCountry);
           params.set('lang', selectedLang);
-          navigate(`/app/${id}?${params.toString()}`);
+          navigate(`/app/${id}?${params.toString()}`, { preventScrollReset: true });
         }}
         sx={{ mb: 2 }}
       >
