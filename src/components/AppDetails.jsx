@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { buildApiUrl } from '../config';
 import ScreenshotGallery from './ScreenshotGallery';
+import CenteredLoader from './CenteredLoader';
 import RatingsHistogram from './RatingsHistogram';
 import * as flags from 'country-flag-icons/react/3x2';
 import { normalizeCountryCode, isValidCountryCode } from '../utils/countryUtils';
@@ -178,9 +179,7 @@ function AppDetails({ country: initialCountry }) {
 
   if (loading || !details) {
     return (
-      <Box display="flex" justifyContent="center" my={4}>
-        <CircularProgress />
-      </Box>
+      <CenteredLoader />
     );
   }
 
@@ -306,7 +305,7 @@ function AppDetails({ country: initialCountry }) {
                   <Paper variant="outlined" sx={{ p: 2 }}>
                     {loadingCountries ? (
                       <Box display="flex" justifyContent="center" p={2}>
-                        <CircularProgress size={24} />
+                        <CenteredLoader size="small" />
                       </Box>
                     ) : (
                       <Grid container spacing={1}>

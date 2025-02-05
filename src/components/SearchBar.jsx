@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import CenteredLoader from './CenteredLoader';
 import {
   Autocomplete,
   TextField,
@@ -98,7 +99,7 @@ function SearchBar({ country, onCountryChange }) {
             ...params.InputProps,
             endAdornment: (
               <React.Fragment>
-                {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                {loading ? <CenteredLoader size="small" /> : null}
                 {params.InputProps.endAdornment}
               </React.Fragment>
             ),

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { buildApiUrl } from '../config';
 import * as flags from 'country-flag-icons/react/3x2';
+import CenteredLoader from './CenteredLoader';
 import { normalizeCountryCode, isValidCountryCode } from '../utils/countryUtils';
 import DailyReviewsChart from './DailyReviewsChart';
 import SentimentAnalysis from './SentimentAnalysis';
@@ -264,9 +265,7 @@ function ReviewsDetails() {
           <DailyReviewsChart reviews={reviews} />
           <Paper variant="outlined" sx={{ p: 2 }}>
             {loading ? (
-              <Box display="flex" justifyContent="center" my={4}>
-                <CircularProgress />
-              </Box>
+              <CenteredLoader />
             ) : (
               <>
                 <Typography variant="h6" gutterBottom>
