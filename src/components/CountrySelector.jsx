@@ -43,10 +43,23 @@ function CountrySelector({ value, onChange }) {
       onChange={(e) => onChange(e.target.value)}
       sx={{ 
         minWidth: 120,
+        height: '56px',
         '& .MuiSelect-select': {
           display: 'flex',
           alignItems: 'center',
-          gap: 1
+          gap: 1,
+          height: '56px',
+          lineHeight: '56px'
+        },
+        bgcolor: 'background.paper',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+        borderRadius: '16px',
+        transition: 'box-shadow 0.2s',
+        '&:hover': {
+          boxShadow: '0 6px 16px rgba(0, 0, 0, 0.08)'
+        },
+        '&.Mui-focused': {
+          boxShadow: '0 8px 20px rgba(0, 0, 0, 0.12)'
         }
       }}
       size="small"

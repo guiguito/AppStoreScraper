@@ -178,6 +178,28 @@ const errorHandler = (
 };
 
 // Routes
+app.get('/category-apps', validateCommonParams, async (req: ValidatedRequest, res: express.Response) => {
+  try {
+    const { country } = req.validatedParams!;
+    const categoryId = parseInt(req.query.categoryId as string);
+
+    if (!categoryId) {
+      return res.status(400).json({ error: 'Category ID is required' });
+    }
+
+    const results = await client.list({
+      country: getCountryCode(country),
+      category: categoryId,
+      num: 50,
+    });
+
+    return res.json(results);
+  } catch (error) {
+    logger.error('Error fetching category apps:', error);
+    return res.status(500).json({ error: 'Failed to fetch category apps' });
+  }
+});
+
 app.get('/search', validateCommonParams, async (
   req: ValidatedRequest,
   res: express.Response,

@@ -4,9 +4,9 @@ const getDesignTokens = (mode) => ({
   palette: {
     mode,
     primary: {
-      main: '#1a237e', // Deep blue
-      light: '#534bae',
-      dark: '#000051',
+      main: '#3949ab', // Lighter blue
+      light: '#6f74dd',
+      dark: '#00227b',
     },
     secondary: {
       main: '#3949ab', // Lighter blue for contrast

@@ -9,11 +9,13 @@ import AppDetails from './components/AppDetails';
 import AppCollections from './components/AppCollections';
 import ReviewsDetails from './components/ReviewsDetails';
 import ErrorBoundary from './components/ErrorBoundary';
+import CategoryChips from './components/CategoryChips';
 
 function HomePage({ country, onCountryChange }) {
   return (
     <Box sx={{ my: 4 }}>
       <SearchBar country={country} onCountryChange={onCountryChange} />
+      <CategoryChips country={country} />
       <AppCollections country={country} />
     </Box>
   );
