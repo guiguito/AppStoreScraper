@@ -1,6 +1,8 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import express from 'express';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { initializeApp } from 'firebase-admin/app';
 
 import { AppStoreClient, Country, Collection, Sort, Review } from 'app-store-client';
 import { Parser } from 'json2csv';
@@ -13,8 +15,20 @@ interface ValidatedRequest extends express.Request {
   };
 }
 
+// Initialize Firebase Admin
+initializeApp();
+
 const app = express();
 const client = new AppStoreClient();
+const db = getFirestore();
+
+// Interface for cached sentiment analysis
+interface CachedSentimentAnalysis {
+  appId: string;
+  country: string;
+  analysis: SentimentAnalysisResponse;
+  lastUpdated: Timestamp;
+}
 
 // CORS middleware for all requests
 app.use((req, res, next) => {
@@ -488,7 +502,7 @@ app.get('/reviews/:id/sentiment', validateCommonParams, async (
     }
 
     // Perform sentiment analysis
-    const sentimentAnalysis = await analyzeSentiment(allReviews);
+    const sentimentAnalysis = await analyzeSentiment(id.toString(), country, allReviews);
     return res.json(sentimentAnalysis);
   } catch (error) {
     return next(error);
@@ -739,7 +753,21 @@ interface SentimentAnalysisResponse {
 
 const MISTRAL_API_KEY = 'bR19XOC1oWhJ0NtW9GxQlUKoCh9blDeg';
 
-async function analyzeSentiment(reviews: any[]): Promise<SentimentAnalysisResponse> {
+async function analyzeSentiment(appId: string, country: string, reviews: any[]): Promise<SentimentAnalysisResponse> {
+  // Check cache first
+  const cacheRef = db.collection('sentimentAnalysis').doc(`${appId}_${country}`);
+  const cacheDoc = await cacheRef.get();
+  
+  if (cacheDoc.exists) {
+    const cachedData = cacheDoc.data() as CachedSentimentAnalysis;
+    const fiveDaysAgo = Timestamp.fromDate(new Date(Date.now() - 5 * 24 * 60 * 60 * 1000));
+    
+    // Return cached data if it's less than 5 days old
+    if (cachedData.lastUpdated.toDate() > fiveDaysAgo.toDate()) {
+      logger.info('Using cached sentiment analysis', { appId, country });
+      return cachedData.analysis;
+    }
+  }
   const reviewTexts = reviews.map(review => review.text || review.content).filter(Boolean);
   const prompt = `You are a Mobile Product Manager conducting a comprehensive sentiment analysis on the reviews below.
   Your task is to: Categorize with your own analysis (no external code and library)
@@ -748,6 +776,7 @@ async function analyzeSentiment(reviews: any[]): Promise<SentimentAnalysisRespon
   in a structured format. Identify the top 5 recurring issues from negative and neutral reviews.
   Summarize each issue and provide the number of occurrences.
   Provide insights on the overall sentiment distribution and any notable patterns found in the dataset.
+  Please provide your answers in english.
 
 Reviews to analyze:
 ${reviewTexts.map((text, i) => `Review ${i + 1}: ${text}`).join('\n')}`;
@@ -832,7 +861,17 @@ ${reviewTexts.map((text, i) => `Review ${i + 1}: ${text}`).join('\n')}`;
     }
 
     const result = await response.json();
-    return result.choices[0].message.content;
+    const analysis = result.choices[0].message.content;
+
+    // Cache the results
+    await cacheRef.set({
+      appId,
+      country,
+      analysis,
+      lastUpdated: Timestamp.now(),
+    });
+
+    return analysis;
   } catch (error) {
     logger.error('Error analyzing sentiment:', error);
     throw error;
