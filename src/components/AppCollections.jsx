@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Grid, Typography, Card, CardContent, Avatar, Box, Skeleton, Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
-import { buildApiUrl } from '../config';
+import { useApiWithCache } from '../hooks/useApiWithCache';
 
 const collections = [
   { id: 'topfreeapplications', title: 'Top Free Apps' },
@@ -15,37 +15,51 @@ const collections = [
 
 function AppCollections({ country }) {
   const navigate = useNavigate();
-  const [collectionData, setCollectionData] = useState({});
-  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState(null);
+  const [collectionData, setCollectionData] = useState({});
+  const [loading, setLoading] = useState(true);
 
+  // Create a separate hook call for each collection
+  const topFreeApps = useApiWithCache('/collection/topfreeapplications', { country });
+  const topGrossingApps = useApiWithCache('/collection/topgrossingapplications', { country });
+  const topPaidApps = useApiWithCache('/collection/toppaidapplications', { country });
+  const newApps = useApiWithCache('/collection/newapplications', { country });
+  const newFreeApps = useApiWithCache('/collection/newfreeapplications', { country });
+  const newPaidApps = useApiWithCache('/collection/newpaidapplications', { country });
+
+  // Combine all results
   useEffect(() => {
-    const fetchCollections = async () => {
-      setLoading(true);
-      try {
-        const responses = await Promise.all(
-          collections.map(({ id }) =>
-            fetch(buildApiUrl(`/collection/${id}`, { country }))
-              .then(res => res.json())
-              .then(data => ({ id, data }))
-          )
-        );
+    const results = [
+      { id: 'topfreeapplications', result: topFreeApps },
+      { id: 'topgrossingapplications', result: topGrossingApps },
+      { id: 'toppaidapplications', result: topPaidApps },
+      { id: 'newapplications', result: newApps },
+      { id: 'newfreeapplications', result: newFreeApps },
+      { id: 'newpaidapplications', result: newPaidApps }
+    ];
 
-        const newData = {};
-        responses.forEach(({ id, data }) => {
-          newData[id] = data;
-        });
-        setCollectionData(newData);
-      } catch (error) {
-        console.error('Error fetching collections:', error);
-      } finally {
-        setLoading(false);
+    const newData = {};
+    let hasAllData = true;
+
+    results.forEach(({ id, result }) => {
+      if (result.data) {
+        newData[id] = result.data;
+      } else {
+        hasAllData = false;
       }
-    };
+    });
 
-    fetchCollections();
-  }, [country]);
+    if (hasAllData || !loading) {
+      setCollectionData(newData);
+    }
+    setLoading(results.some(({ result }) => result.loading));
+  }, [topFreeApps.data, topFreeApps.loading,
+      topGrossingApps.data, topGrossingApps.loading,
+      topPaidApps.data, topPaidApps.loading,
+      newApps.data, newApps.loading,
+      newFreeApps.data, newFreeApps.loading,
+      newPaidApps.data, newPaidApps.loading]);
 
   const renderAppCard = (app) => (
     <Grid item xs={12} sm={6} md={4} lg={2.4} key={app.id}>
