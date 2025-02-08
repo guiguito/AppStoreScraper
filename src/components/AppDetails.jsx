@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { buildApiUrl } from '../config';
 import ScreenshotGallery from './ScreenshotGallery';
-import CenteredLoader from './CenteredLoader';
+import AppDetailsShimmer from './ShimmerEffect';
 import RatingsHistogram from './RatingsHistogram';
 import * as flags from 'country-flag-icons/react/3x2';
 import { normalizeCountryCode, isValidCountryCode } from '../utils/countryUtils';
@@ -178,9 +178,7 @@ function AppDetails({ country: initialCountry }) {
   }
 
   if (loading || !details) {
-    return (
-      <CenteredLoader />
-    );
+    return <AppDetailsShimmer />;
   }
 
   return (

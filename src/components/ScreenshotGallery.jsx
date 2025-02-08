@@ -41,22 +41,68 @@ function ScreenshotGallery({ screenshots }) {
 
   return (
     <>
-      <ImageList sx={{ width: '100%', height: 200 }} cols={4} rowHeight={164}>
-        {screenshots.map((screenshot, index) => (
-          <ImageListItem 
-            key={screenshot} 
-            sx={{ cursor: 'pointer' }}
-            onClick={() => handleOpen(index)}
-          >
-            <img
-              src={screenshot}
-              alt={`Screenshot ${index + 1}`}
-              loading="lazy"
-              style={{ objectFit: 'cover', height: '100%' }}
-            />
-          </ImageListItem>
-        ))}
-      </ImageList>
+      <Box
+        sx={{
+          width: '100%',
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          WebkitOverflowScrolling: 'touch',
+          // Scrollbar styling
+          '&::-webkit-scrollbar': {
+            height: '12px',
+            backgroundColor: 'rgba(0, 0, 0, 0.05)'
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+            borderRadius: '6px',
+            '&:hover': {
+              backgroundColor: 'rgba(0, 0, 0, 0.3)'
+            }
+          },
+          // Firefox scrollbar styling
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'rgba(0, 0, 0, 0.2) rgba(0, 0, 0, 0.05)'
+        }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 2,
+            py: 1, // Add padding to show box-shadow
+            width: 'fit-content' // Allow container to grow with items
+          }}
+        >
+          {screenshots.map((screenshot, index) => (
+            <Box
+              key={screenshot}
+              onClick={() => handleOpen(index)}
+              sx={{
+                cursor: 'pointer',
+                height: 500, // Fixed height for all screenshots
+                borderRadius: 2,
+                overflow: 'hidden',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 16px rgba(0, 0, 0, 0.15)'
+                }
+              }}
+            >
+              <img
+                style={{
+                  height: '100%',
+                  width: 'auto',
+                  display: 'block'
+                }}
+                src={screenshot}
+                alt={`Screenshot ${index + 1}`}
+                loading="lazy"
+              />
+            </Box>
+          ))}
+        </Box>
+      </Box>
 
       <Dialog
         fullScreen={fullScreen}
