@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Container, Grid } from '@mui/material';
+import { Box, Container, Grid, useTheme } from '@mui/material';
 import { keyframes } from '@mui/system';
 
 const shimmer = keyframes`
@@ -11,20 +11,27 @@ const shimmer = keyframes`
   }
 `;
 
-const Skeleton = ({ width, height, sx = {} }) => (
+const Skeleton = ({ width, height, sx = {} }) => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
+  
+  return (
   <Box
     sx={{
       width,
       height,
-      backgroundColor: 'rgba(0, 0, 0, 0.06)',
+      backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)',
       borderRadius: 1,
-      background: 'linear-gradient(to right, #f6f7f8 8%, #edeef1 38%, #f6f7f8 54%)',
+      background: isDarkMode
+        ? 'linear-gradient(to right, #27272a 8%, #3f3f46 38%, #27272a 54%)'
+        : 'linear-gradient(to right, #f6f7f8 8%, #edeef1 38%, #f6f7f8 54%)',
       backgroundSize: '1000px 100%',
       animation: `${shimmer} 2s infinite linear`,
       ...sx
     }}
   />
-);
+  );
+}
 
 function AppDetailsShimmer() {
   return (
