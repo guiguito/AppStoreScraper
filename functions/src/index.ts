@@ -479,7 +479,7 @@ app.get('/reviews/:id/sentiment', validateCommonParams, async (
     let page = 0;
     let hasMore = true;
 
-    while (hasMore && page < 20) { // Limit to 1000 reviews (20 pages * 50 reviews)
+    while (hasMore && page < 11) { // Limit to 50 reviews (11 pages * 50 reviews)
       try {
         const results = await client.reviews({
           id: id.toString(),
@@ -517,7 +517,7 @@ app.get('/reviews/:id/all', validateCommonParams, async (
   try {
     const { id } = req.params;
     const { lang, country } = req.validatedParams!;
-    const limit = parseInt(req.query.limit?.toString() || '1000');
+    const limit = parseInt(req.query.limit?.toString() || '550');
 
     // Array to store all reviews
     let allReviews: Review[] = [];
@@ -790,7 +790,7 @@ ${reviewTexts.map((text, i) => `Review ${i + 1}: ${text}`).join('\n')}`;
         'Authorization': `Bearer ${MISTRAL_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'mistral-small-2501',
+        model: 'mistral-large-latest',
         messages: [
           {
             role: 'system',
@@ -857,10 +857,33 @@ ${reviewTexts.map((text, i) => `Review ${i + 1}: ${text}`).join('\n')}`;
     });
 
     if (!response.ok) {
-      throw new Error(`Mistral API error: ${response.statusText}`);
+      const errorBody = await response.text();
+      logger.error('Mistral API error details:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorBody,
+        requestBody: {
+          model: 'mistral-small-2501',
+          messages: [
+            { role: 'system', content: '...' },  // Omitting full content for logs
+            { role: 'user', content: '...' },
+          ],
+          response_format: 'json_schema',
+          max_tokens: 1024,
+          temperature: 0,
+        },
+      });
+      throw new Error(`Mistral API error: ${response.status} ${response.statusText} - ${errorBody}`);
     }
 
     const result = await response.json();
+    logger.info('Mistral API response:', { result });
+    
+    if (!result.choices?.[0]?.message?.content) {
+      logger.error('Unexpected Mistral API response format:', { result });
+      throw new Error('Unexpected response format from Mistral API');
+    }
+    
     const analysis = result.choices[0].message.content;
 
     // Cache the results
@@ -873,7 +896,13 @@ ${reviewTexts.map((text, i) => `Review ${i + 1}: ${text}`).join('\n')}`;
 
     return analysis;
   } catch (error) {
-    logger.error('Error analyzing sentiment:', error);
+    logger.error('Error analyzing sentiment:', {
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined,
+      appId,
+      country,
+      reviewCount: reviews.length,
+    });
     throw error;
   }
 }

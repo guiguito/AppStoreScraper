@@ -132,7 +132,7 @@ function ReviewsDetails() {
       const params = {
         lang: selectedLang,
         country: selectedCountry,
-        limit: 1000
+        limit: 550
       };
       
       // Only check cache if we're still mounted
