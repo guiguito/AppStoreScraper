@@ -33,7 +33,8 @@ export const countries = {
   'AE': 'United Arab Emirates',
   'DK': 'Denmark',
   'NO': 'Norway',
-  'FI': 'Finland'
+  'FI': 'Finland',
+  'LU': 'Luxembourg'
 };
 
 function CountrySelector({ value, onChange }) {

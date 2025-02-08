@@ -70,6 +70,7 @@ const countryMap: { [key: string]: Country } = {
   'DK': Country.DK,   // Denmark
   'NO': Country.NO,   // Norway
   'FI': Country.FI,   // Finland
+  'LU': Country.LU,   // Luxembourg
 };
 
 const getCountryCode = (userCountry = 'US'): Country => {
@@ -118,6 +119,7 @@ const TOP_30_COUNTRIES: { [key: string]: string } = {
   'TR': 'Turkey',
   'TW': 'Taiwan',
   'US': 'United States',
+  'LU': 'Luxembourg',
 };
 const fetchAvailableCountries = async (id: string): Promise<{code: string, name: string}[]> => {
   const available: {code: string, name: string}[] = [];

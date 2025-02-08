@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import CenteredLoader from './CenteredLoader';
 import {
   Autocomplete,
   TextField,
@@ -60,12 +59,17 @@ function SearchBar({ country, onCountryChange }) {
     <Stack 
       direction="row" 
       spacing={2} 
-      alignItems="center" 
-      sx={{ 
-        width: '100%',
-        maxWidth: '70%',
-        mx: 'auto',
-        mb: 6
+      alignItems="center"
+      sx={{
+        width: {
+          xs: '100%', // Full width on mobile
+          md: '80%'   // 80% width on desktop
+        },
+        mx: 'auto',  // Center horizontally
+        px: {
+          xs: 2,      // 16px padding on mobile
+          md: 0       // No padding on desktop
+        }
       }}
     >
       <Box sx={{ flexGrow: 1 }}>
@@ -109,7 +113,18 @@ function SearchBar({ country, onCountryChange }) {
             ...params.InputProps,
             endAdornment: (
               <React.Fragment>
-                {loading ? <CenteredLoader size="small" /> : null}
+                {loading ? (
+                  <CircularProgress
+                    size={20}
+                    sx={{
+                      color: 'primary.main',
+                      position: 'absolute',
+                      right: 40,
+                      top: 'calc(50% - 10px)', // Half of the loader size (20px)
+                      marginTop: '2px', // Fine-tune vertical alignment
+                    }}
+                  />
+                ) : null}
                 {params.InputProps.endAdornment}
               </React.Fragment>
             ),
