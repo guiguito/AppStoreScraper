@@ -39,6 +39,11 @@ function ReviewsDetails() {
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
 
+  // Prevent initial scroll
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   // Handle date changes with proper validation
   const handleStartDateChange = (newDate) => {
     if (newDate && !newDate.isValid) return;
@@ -285,10 +290,13 @@ function ReviewsDetails() {
     setLoading(true);
     setSentimentError(null);
     
-    // Update URL with new country
+    // Update URL with new country and prevent scroll
     const params = new URLSearchParams(searchParams);
     params.set('country', country);
-    navigate(`/app/${id}/reviews?${params.toString()}`, { preventScrollReset: true });
+    navigate(`/app/${id}/reviews?${params.toString()}`, { 
+      preventScrollReset: true,
+      replace: true // Replace instead of push to prevent scroll issues
+    });
   };
 
   if (error) {
@@ -312,7 +320,10 @@ function ReviewsDetails() {
           const params = new URLSearchParams();
           params.set('country', selectedCountry);
           params.set('lang', selectedLang);
-          navigate(`/app/${id}?${params.toString()}`, { preventScrollReset: true });
+          navigate(`/app/${id}?${params.toString()}`, { 
+            preventScrollReset: true,
+            replace: true // Replace instead of push to prevent scroll issues
+          });
         }}
         sx={{ mb: 2 }}
       >
