@@ -473,13 +473,31 @@ app.get('/reviews/:id/sentiment', validateCommonParams, async (
   try {
     const { id } = req.params;
     const { lang, country } = req.validatedParams!;
+    const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
+    const endDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
+
+    // Validate dates if provided
+    if (startDate && isNaN(startDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid start date format' });
+    }
+    if (endDate && isNaN(endDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid end date format' });
+    }
+    if (startDate && endDate && startDate > endDate) {
+      return res.status(400).json({ error: 'Start date must be before end date' });
+    }
 
     // Fetch reviews first
     const allReviews: Review[] = [];
     let page = 0;
     let hasMore = true;
+    const MAX_REVIEWS = 500; // Maximum number of reviews to analyze
 
-    while (hasMore && page < 11) { // Limit to 50 reviews (11 pages * 50 reviews)
+    const dateRange = `${startDate?.toISOString() || 'all'} - ${endDate?.toISOString() || 'all'}`;
+    logger.info(`Fetching reviews with date range: ${dateRange}`);
+
+    while (hasMore && page < 20 && allReviews.length < MAX_REVIEWS) {
+      // Increased page limit for better date range coverage
       try {
         const results = await client.reviews({
           id: id.toString(),
@@ -489,21 +507,52 @@ app.get('/reviews/:id/sentiment', validateCommonParams, async (
           sort: Sort.RECENT,
         });
 
-        if (results && results.length > 0) {
-          allReviews.push(...results);
-          page++;
-        } else {
+        if (!results || results.length === 0) {
           hasMore = false;
+          break;
         }
+
+        // Filter reviews by date range
+        for (const review of results) {
+          const reviewDate = new Date(review.updated);
+          
+          // Stop if we've gone past the start date (reviews are in descending order)
+          if (startDate && reviewDate < startDate) {
+            hasMore = false;
+            break;
+          }
+
+          // Only add reviews within the date range
+          if ((!startDate || reviewDate >= startDate) && 
+              (!endDate || reviewDate <= endDate)) {
+            allReviews.push(review);
+            
+            // Stop if we've reached the maximum number of reviews
+            if (allReviews.length >= MAX_REVIEWS) {
+              hasMore = false;
+              break;
+            }
+          }
+        }
+
+        page++;
       } catch (error) {
         logger.error(`Error fetching page ${page}:`, error);
         break;
       }
     }
 
-    // Perform sentiment analysis
-    const sentimentAnalysis = await analyzeSentiment(id.toString(), country, allReviews);
-    return res.json(sentimentAnalysis);
+    logger.info(`Analyzing sentiment for ${allReviews.length} filtered reviews`);
+
+    // Perform sentiment analysis on the filtered reviews
+    const analysis = await analyzeSentiment(
+      id.toString(),
+      country,
+      allReviews,
+      startDate,
+      endDate
+    );
+    return res.json(analysis);
   } catch (error) {
     return next(error);
   }
@@ -753,9 +802,19 @@ interface SentimentAnalysisResponse {
 
 const MISTRAL_API_KEY = 'bR19XOC1oWhJ0NtW9GxQlUKoCh9blDeg';
 
-async function analyzeSentiment(appId: string, country: string, reviews: any[]): Promise<SentimentAnalysisResponse> {
-  // Check cache first
-  const cacheRef = db.collection('sentimentAnalysis').doc(`${appId}_${country}`);
+async function analyzeSentiment(
+  appId: string,
+  country: string,
+  reviews: any[],
+  startDate: Date | null,
+  endDate: Date | null
+): Promise<SentimentAnalysisResponse> {
+  // Create cache key that includes the date range
+  // Create a date-based cache key if dates are provided
+  const startKey = startDate?.toISOString().split('T')[0] || '';
+  const endKey = endDate?.toISOString().split('T')[0] || '';
+  const dateKey = startDate && endDate ? `_${startKey}_${endKey}` : '';
+  const cacheRef = db.collection('sentimentAnalysis').doc(`${appId}_${country}${dateKey}`);
   const cacheDoc = await cacheRef.get();
   
   if (cacheDoc.exists) {

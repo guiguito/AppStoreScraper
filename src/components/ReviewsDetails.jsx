@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { buildApiUrl } from '../config';
 import * as flags from 'country-flag-icons/react/3x2';
@@ -22,13 +22,33 @@ import {
   CircularProgress,
   Divider,
 } from '@mui/material';
-import { Download, ArrowBack, Language } from '@mui/icons-material';
+import { Download, ArrowBack, Language, DateRange } from '@mui/icons-material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterLuxon } from '@mui/x-date-pickers/AdapterLuxon';
+import { DateTime } from 'luxon';
+
+// Set Luxon's default locale to French
+DateTime.local().setLocale('fr');
 
 function ReviewsDetails() {
   const { getCachedData, setCachedData } = useDataCache();
   const [sentimentData, setSentimentData] = useState(null);
   const [loadingSentiment, setLoadingSentiment] = useState(false);
   const [sentimentError, setSentimentError] = useState(null);
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+
+  // Handle date changes with proper validation
+  const handleStartDateChange = (newDate) => {
+    if (newDate && !newDate.isValid) return;
+    setStartDate(newDate);
+  };
+
+  const handleEndDateChange = (newDate) => {
+    if (newDate && !newDate.isValid) return;
+    setEndDate(newDate);
+  };
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -40,30 +60,76 @@ function ReviewsDetails() {
   const selectedCountry = normalizeCountryCode(searchParams.get('country') || 'US');
   const selectedLang = searchParams.get('lang') || 'en';
 
+  // Calculate available date range and filtered reviews
+  const { dateRange, filteredReviews } = useMemo(() => {
+    if (!reviews.length) return { dateRange: { min: null, max: null }, filteredReviews: [] };
+    
+    const dates = reviews.map(review => DateTime.fromISO(review.updated));
+    const range = {
+      min: DateTime.min(...dates),
+      max: DateTime.max(...dates)
+    };
+
+    // Filter reviews by date range if dates are selected
+    const filtered = startDate && endDate
+      ? reviews.filter(review => {
+          const reviewDate = DateTime.fromISO(review.updated);
+          return reviewDate >= startDate.startOf('day') && reviewDate <= endDate.endOf('day');
+        })
+      : reviews;
+
+    return { dateRange: range, filteredReviews: filtered };
+  }, [reviews, startDate, endDate]);
+
+  // Initialize date range when reviews are loaded and no dates are set
+  useEffect(() => {
+    if (dateRange.min && dateRange.max && !startDate && !endDate) {
+      // Only set initial date range if no dates are selected
+      setStartDate(dateRange.min.startOf('day'));
+      setEndDate(dateRange.max.endOf('day'));
+    }
+  }, [dateRange, startDate, endDate]); // Include startDate and endDate in dependencies
+
   // Fetch sentiment analysis
   useEffect(() => {
     const fetchSentiment = async () => {
-      if (!reviews.length) return;
-      
-      const params = {
-        lang: selectedLang,
-        country: selectedCountry
-      };
+      // Reset states at the start
+      setSentimentData(null);
+      setSentimentError(null);
+      setLoadingSentiment(true);
 
-      // Check cache first
-      const cached = getCachedData(`/reviews/${id}/sentiment`, params);
-      if (cached) {
-        setSentimentData(cached.data);
+      if (!reviews.length || !startDate || !endDate) {
+        setLoadingSentiment(false);
         return;
       }
       
-      setLoadingSentiment(true);
-      setSentimentError(null);
+      // Format dates as ISO strings for the backend
+      const params = {
+        lang: selectedLang,
+        country: selectedCountry,
+        startDate: startDate?.toUTC().toISO(),  // Convert to UTC ISO string
+        endDate: endDate?.toUTC().endOf('day').toISO()  // End of day in UTC
+      };
+
+      // Create URL with date range parameters
+      const url = new URL(buildApiUrl(`/reviews/${id}/sentiment`));
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) url.searchParams.append(key, value);
+      });
+
+      console.log('Fetching sentiment analysis with params:', params);
+
+      // Create a cache key that includes the date range
+      const cacheKey = `/reviews/${id}/sentiment/${startDate?.toISODate()}_${endDate?.toISODate()}`;
+      const cached = getCachedData(cacheKey, params);
+      if (cached) {
+        setSentimentData(cached.data);
+        setLoadingSentiment(false);
+        return;
+      }
       
       try {
-        const response = await fetch(
-          buildApiUrl(`/reviews/${id}/sentiment`, params)
-        );
+        const response = await fetch(url.toString());
 
         if (!response.ok) {
           throw new Error('Failed to fetch sentiment analysis');
@@ -73,8 +139,8 @@ function ReviewsDetails() {
         // Parse the response if it's a string
         const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
         setSentimentData(parsedData);
-        // Cache the parsed data
-        setCachedData(`/reviews/${id}/sentiment`, params, parsedData);
+        // Cache the parsed data with date range in key
+        setCachedData(cacheKey, params, parsedData);
       } catch (error) {
         console.error('Error fetching sentiment:', error);
         setSentimentError(error.message);
@@ -86,7 +152,9 @@ function ReviewsDetails() {
     if (reviews.length > 0) {
       fetchSentiment();
     }
-  }, [id, selectedLang, selectedCountry, reviews, getCachedData, setCachedData]);
+  }, [id, selectedLang, selectedCountry, reviews, getCachedData, setCachedData, startDate, endDate]);
+
+
 
   // Reset states when country or language changes
   useEffect(() => {
@@ -94,6 +162,8 @@ function ReviewsDetails() {
     setSentimentError(null);
     setLoadingSentiment(false); // Start as false since we don't have reviews yet
     setLoading(true); // Indicate we're loading new data
+    setStartDate(null); // Reset date range when country/language changes
+    setEndDate(null);
   }, [selectedCountry, selectedLang]);
 
   // Fetch app details to get available countries
@@ -258,7 +328,7 @@ function ReviewsDetails() {
                 Reviews Analysis
               </Typography>
               <Typography variant="body1" gutterBottom>
-                Total Reviews Fetched: {totalReviews}
+                Reviews: {filteredReviews.length} {startDate && endDate && filteredReviews.length !== reviews.length && `(filtered from ${reviews.length})`}
               </Typography>
               <Button
                 variant="contained"
@@ -303,11 +373,55 @@ function ReviewsDetails() {
 
         {/* Right Column */}
         <Grid item xs={12} md={9}>
-          <SentimentAnalysis
-            data={sentimentData}
-            loading={loadingSentiment}
-            error={sentimentError}
-          />
+          <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                <DateRange sx={{ mr: 1, verticalAlign: 'bottom' }} />
+                Sentiment Analysis Period
+              </Typography>
+              <LocalizationProvider dateAdapter={AdapterLuxon} adapterLocale="fr">
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                  <DatePicker
+                    label="Start Date"
+                    value={startDate}
+                    onChange={handleStartDateChange}
+                    minDate={dateRange.min}
+                    maxDate={endDate || dateRange.max}
+                    disabled={!dateRange.min}
+                    slotProps={{
+                      textField: {
+                        size: 'small',
+                        helperText: dateRange.min ? null : 'No reviews available'
+                      }
+                    }}
+                    format="dd/MM/yyyy"
+                    closeOnSelect={false}
+                  />
+                  <DatePicker
+                    label="End Date"
+                    value={endDate}
+                    onChange={handleEndDateChange}
+                    minDate={startDate || dateRange.min}
+                    maxDate={dateRange.max}
+                    disabled={!dateRange.max}
+                    slotProps={{
+                      textField: {
+                        size: 'small',
+                        helperText: dateRange.max ? null : 'No reviews available'
+                      }
+                    }}
+                    format="dd/MM/yyyy"
+                    closeOnSelect={false}
+                  />
+                </Box>
+              </LocalizationProvider>
+            </Box>
+            <SentimentAnalysis
+              data={sentimentData}
+              loading={loadingSentiment}
+              error={sentimentError}
+            />
+          </Paper>
           <DailyReviewsChart reviews={reviews} />
           <Paper variant="outlined" sx={{ p: 2 }}>
             {loading ? (
@@ -324,7 +438,7 @@ function ReviewsDetails() {
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                         <Rating value={review.score || review.rating} readOnly size="small" />
                         <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                          {new Date(review.updated).toLocaleDateString()}
+                          {DateTime.fromISO(review.updated).setLocale('fr').toLocaleString(DateTime.DATE_FULL)}
                         </Typography>
                       </Box>
                       <Typography variant="subtitle2">{review.title}</Typography>
