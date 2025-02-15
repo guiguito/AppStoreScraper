@@ -6,6 +6,9 @@ import { initializeApp } from 'firebase-admin/app';
 
 import { AppStoreClient, Country, Collection, Sort, Review } from 'app-store-client';
 import { Parser } from 'json2csv';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: google-play-scraper works with default import despite the type error
+import gplay from 'google-play-scraper';
 
 // Define custom interfaces
 interface ValidatedRequest extends express.Request {
@@ -216,7 +219,7 @@ app.get('/category-apps', validateCommonParams, async (req: ValidatedRequest, re
   }
 });
 
-app.get('/search', validateCommonParams, async (
+app.get('/search/:store', validateCommonParams, async (
   req: ValidatedRequest,
   res: express.Response,
   next: express.NextFunction,
@@ -224,19 +227,33 @@ app.get('/search', validateCommonParams, async (
   try {
     const { term } = req.query;
     const { lang, country } = req.validatedParams!;
+    const { store } = req.params;
 
     if (!term || term.toString().trim().length === 0) {
       return res.json([]);
     }
 
-    const results = await client.search({
-      term: term.toString().trim(),
-      num: 20,
-      country: getCountryCode(country),
-      language: lang,
-    });
+    const searchTerm = term.toString().trim();
 
-    return res.json(results);
+    if (store === 'appstore') {
+      const results = await client.search({
+        term: searchTerm,
+        num: 20,
+        country: getCountryCode(country),
+        language: lang,
+      });
+      return res.json(results);
+    } else if (store === 'playstore') {
+      const results = await gplay.search({
+        term: searchTerm,
+        country: country.toLowerCase(),
+        lang: lang,
+        num: 20,
+      });
+      return res.json(results);
+    } else {
+      return res.status(400).json({ error: 'Invalid store parameter. Use appstore or playstore.' });
+    }
   } catch (error) {
     return next(error);
   }
