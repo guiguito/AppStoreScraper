@@ -6,13 +6,15 @@ import {
   Box,
   Avatar,
   Stack,
+  Typography,
 } from '@mui/material';
+import AppleIcon from '@mui/icons-material/Apple';
+import GoogleIcon from '@mui/icons-material/Google';
 import CountrySelector from './CountrySelector';
 import { useNavigate } from 'react-router-dom';
 import { buildApiUrl } from '../config';
 
 function SearchBar({ country, onCountryChange }) {
-  const [selectedStore, setSelectedStore] = useState('appstore');
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState([]);
@@ -31,7 +33,7 @@ function SearchBar({ country, onCountryChange }) {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const url = buildApiUrl(`/search/${selectedStore}`, {
+        const url = buildApiUrl('/search', {
           term: inputValue,
           lang: 'en',
           country: country
@@ -71,38 +73,6 @@ function SearchBar({ country, onCountryChange }) {
         }
       }}
     >
-      <Stack direction="row" spacing={2} justifyContent="center">
-        <button
-          onClick={() => setSelectedStore('appstore')}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: selectedStore === 'appstore' ? '#1976d2' : '#e0e0e0',
-            color: selectedStore === 'appstore' ? 'white' : 'black',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: selectedStore === 'appstore' ? 'bold' : 'normal',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          App Store
-        </button>
-        <button
-          onClick={() => setSelectedStore('playstore')}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: selectedStore === 'playstore' ? '#1976d2' : '#e0e0e0',
-            color: selectedStore === 'playstore' ? 'white' : 'black',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: selectedStore === 'playstore' ? 'bold' : 'normal',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          Play Store
-        </button>
-      </Stack>
       <Stack direction="row" spacing={2} alignItems="center">
         <Box sx={{ flexGrow: 1 }}>
           <Autocomplete
@@ -139,7 +109,7 @@ function SearchBar({ country, onCountryChange }) {
             renderInput={(params) => (
               <TextField
                 {...params}
-                label={`Search ${selectedStore === 'appstore' ? 'App Store' : 'Play Store'}`}
+                label="Search App Store & Play Store"
                 variant="outlined"
                 InputProps={{
                   ...params.InputProps,
@@ -164,20 +134,51 @@ function SearchBar({ country, onCountryChange }) {
               />
             )}
             renderOption={(props, option) => (
-              <Box component="li" sx={{ '& > img': { mr: 2, flexShrink: 0 } }} {...props}>
-                <Avatar 
-                  src={option.icon} 
-                  variant="rounded" 
-                  sx={{ 
-                    width: 48, 
-                    height: 48, 
-                    borderRadius: 2, 
-                    bgcolor: 'background.paper', 
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-                    mr: 2
-                  }} 
-                />
-                {option.title}
+              <Box 
+                component="li" 
+                sx={{ 
+                  '& > img': { mr: 2, flexShrink: 0 },
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  width: '100%'
+                }} 
+                {...props}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                  <Avatar 
+                    src={option.icon} 
+                    variant="rounded" 
+                    sx={{ 
+                      width: 48, 
+                      height: 48, 
+                      borderRadius: 2, 
+                      bgcolor: 'background.paper', 
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                      mr: 2
+                    }} 
+                  />
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="body1" component="div">
+                      {option.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" component="div">
+                      {option.developer}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  ml: 2,
+                  color: 'text.disabled'
+                }}>
+                  {option.store === 'appstore' ? (
+                    <AppleIcon sx={{ fontSize: 20 }} />
+                  ) : (
+                    <GoogleIcon sx={{ fontSize: 20 }} />
+                  )}
+                </Box>
               </Box>
             )}
           />

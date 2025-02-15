@@ -18,6 +18,37 @@ interface ValidatedRequest extends express.Request {
   };
 }
 
+interface AppStoreResult {
+  id: string;
+  title: string;
+  icon: string;
+  developer: string;
+  url: string;
+  description: string;
+  score: number;
+}
+
+interface PlayStoreResult {
+  appId: string;
+  title: string;
+  icon: string;
+  developer: string;
+  url: string;
+  summary?: string;
+  score: number;
+}
+
+interface UnifiedAppResult {
+  id: string;
+  title: string;
+  icon: string;
+  developer: string;
+  url: string;
+  description: string;
+  score: number;
+  store: 'appstore' | 'playstore';
+}
+
 // Initialize Firebase Admin
 initializeApp();
 
@@ -219,7 +250,7 @@ app.get('/category-apps', validateCommonParams, async (req: ValidatedRequest, re
   }
 });
 
-app.get('/search/:store', validateCommonParams, async (
+app.get('/search', validateCommonParams, async (
   req: ValidatedRequest,
   res: express.Response,
   next: express.NextFunction,
@@ -227,7 +258,6 @@ app.get('/search/:store', validateCommonParams, async (
   try {
     const { term } = req.query;
     const { lang, country } = req.validatedParams!;
-    const { store } = req.params;
 
     if (!term || term.toString().trim().length === 0) {
       return res.json([]);
@@ -235,24 +265,62 @@ app.get('/search/:store', validateCommonParams, async (
 
     const searchTerm = term.toString().trim();
 
-    if (store === 'appstore') {
-      const results = await client.search({
-        term: searchTerm,
-        num: 20,
-        country: getCountryCode(country),
-        language: lang,
-      });
-      return res.json(results);
-    } else if (store === 'playstore') {
-      const results = await gplay.search({
-        term: searchTerm,
-        country: country.toLowerCase(),
-        lang: lang,
-        num: 20,
-      });
-      return res.json(results);
-    } else {
-      return res.status(400).json({ error: 'Invalid store parameter. Use appstore or playstore.' });
+    try {
+      const [appStoreResults, playStoreResults] = await Promise.allSettled([
+        client.search({
+          term: searchTerm,
+          num: 10, // Reduced to show equal number from both stores
+          country: getCountryCode(country),
+          language: lang,
+        }),
+        gplay.search({
+          term: searchTerm,
+          country: country.toLowerCase(),
+          lang: lang,
+          num: 10, // Reduced to show equal number from both stores
+        }),
+      ]);
+
+      const results = [];
+      
+      if (appStoreResults.status === 'fulfilled') {
+        results.push(...(appStoreResults.value as AppStoreResult[]).map(app => ({
+          ...app,
+          store: 'appstore',
+        })));
+      }
+
+      if (playStoreResults.status === 'fulfilled') {
+        results.push(...(playStoreResults.value as PlayStoreResult[]).map(app => ({
+          id: app.appId,
+          title: app.title,
+          icon: app.icon,
+          developer: app.developer,
+          url: app.url,
+          description: app.summary || '',
+          score: app.score,
+          store: 'playstore',
+        } as UnifiedAppResult)));
+      }
+
+      // Interleave results from both stores
+      const interleaved = [];
+      const maxLength = Math.max(
+        results.filter(r => r.store === 'appstore').length,
+        results.filter(r => r.store === 'playstore').length
+      );
+
+      for (let i = 0; i < maxLength; i++) {
+        const appStore = results.filter(r => r.store === 'appstore')[i];
+        const playStore = results.filter(r => r.store === 'playstore')[i];
+        if (appStore) interleaved.push(appStore);
+        if (playStore) interleaved.push(playStore);
+      }
+
+      return res.json(interleaved);
+    } catch (error) {
+      logger.error('Search error:', error);
+      return res.status(500).json({ error: 'Failed to perform search' });
     }
   } catch (error) {
     return next(error);
