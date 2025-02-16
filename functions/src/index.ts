@@ -5,7 +5,7 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initializeApp } from 'firebase-admin/app';
 
 import { AppStoreClient, Country, Collection, Sort, Review } from 'app-store-client';
-import type { IReviewsItem } from 'google-play-scraper';
+import type { IReviewsItem, category as PlayStoreCategory } from 'google-play-scraper';
 import { Parser } from 'json2csv';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: google-play-scraper works with default import despite the type error
@@ -242,24 +242,84 @@ const errorHandler = (
 };
 
 // Routes
-app.get('/category-apps', validateCommonParams, async (req: ValidatedRequest, res: express.Response) => {
+app.get('/category-apps/:store', validateCommonParams, async (req: ValidatedRequest, res: express.Response) => {
   try {
-    const { country } = req.validatedParams!;
-    const categoryId = parseInt(req.query.categoryId as string);
+    const { lang, country } = req.validatedParams!;
+    const { store } = req.params;
+    const categoryId = req.query.categoryId as string;
+    const limit = Math.min(parseInt(req.query.limit?.toString() || '20'), 100);
 
     if (!categoryId) {
       return res.status(400).json({ error: 'Category ID is required' });
     }
 
-    const results = await client.list({
-      country: getCountryCode(country),
-      category: categoryId,
-      num: 50,
-    });
+    logger.info(`Fetching ${store} category apps - Category: ${categoryId}, Limit: ${limit}`);
 
-    return res.json(results);
+    if (store === 'playstore') {
+      try {
+        const apps = await gplay.list({
+          category: categoryId as PlayStoreCategory,
+          collection: gplay.collection.TOP_FREE,
+          country: country.toLowerCase(),
+          lang: lang,
+          num: limit,
+          fullDetail: false,
+        });
+
+        const results = apps.slice(0, limit).map((app: GooglePlayApp) => ({
+          id: app.appId,
+          title: app.title,
+          icon: app.icon,
+          developer: app.developer,
+          url: app.url,
+          description: app.summary || '',
+          score: app.score,
+          store: 'playstore',
+        }));
+
+        logger.info(`Successfully fetched ${results.length} Play Store category apps`);
+        return res.json(results);
+      } catch (error) {
+        logger.error('Error fetching Play Store category apps:', error);
+        return res.status(500).json({
+          error: 'Failed to fetch Play Store category apps',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    } else if (store === 'appstore') {
+      try {
+        const apps = await client.list({
+          category: parseInt(categoryId),
+          country: getCountryCode(country),
+          language: lang,
+          num: limit,
+        });
+
+        const results = apps.slice(0, limit).map(app => ({
+          id: app.id,
+          title: app.title,
+          icon: app.icon,
+          developer: app.developer,
+          url: app.url,
+          description: app.description,
+          score: app.score,
+          store: 'appstore',
+        }));
+
+        logger.info(`Successfully fetched ${results.length} App Store category apps`);
+        return res.json(results);
+      } catch (error) {
+        logger.error('Error fetching App Store category apps:', error);
+        return res.status(500).json({
+          error: 'Failed to fetch App Store category apps',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    return res.status(400).json({ error: 'Invalid store parameter' });
   } catch (error) {
-    logger.error('Error fetching category apps:', error);
+    logger.error('Error in category apps endpoint:', error);
     return res.status(500).json({ error: 'Failed to fetch category apps' });
   }
 });
@@ -470,15 +530,83 @@ app.get('/app/:store/:id', validateCommonParams, async (
   }
 });
 
-app.get('/collection/:type', validateCommonParams, async (
+app.get('/collection/:store/:type', validateCommonParams, async (
   req: ValidatedRequest,
   res: express.Response,
   next: express.NextFunction,
 ) => {
   try {
-    const { type } = req.params;
+    const { type, store } = req.params;
     const { lang, country } = req.validatedParams!;
-    
+    const requestedLimit = req.query.limit?.toString();
+    const limit = Math.min(parseInt(requestedLimit || '20'), 100);
+    logger.info(`Collection request - Store: ${store},
+      Type: ${type}, Requested limit: ${requestedLimit}, Final limit: ${limit}`);
+
+    if (store === 'playstore') {
+      try {
+        let collection;
+        switch (type) {
+        case 'topselling_free':
+          collection = gplay.collection.TOP_FREE;
+          break;
+        case 'topselling_paid':
+          collection = gplay.collection.TOP_PAID;
+          break;
+        case 'topgrossing':
+          collection = gplay.collection.GROSSING;
+          break;
+        default:
+          return res.status(400).json({
+            error: 'Invalid collection type for Play Store',
+            validTypes: ['topselling_free', 'topselling_paid', 'topgrossing'],
+          });
+        }
+
+        logger.info(`Fetching Play Store collection: ${type} for country: ${country}`);
+        const apps = await gplay.list({
+          collection,
+          country: country.toLowerCase(),
+          lang: lang,
+          num: limit,
+          fullDetail: false,
+        });
+
+        logger.info(`Fetched ${apps?.length || 0} apps from Play Store collection`);
+
+        if (!apps || !Array.isArray(apps)) {
+          logger.error('Invalid response from Play Store API:', apps);
+          return res.status(500).json({
+            error: 'Invalid response from Play Store API',
+          });
+        }
+
+        // Map and limit results
+        const results: PlayStoreResult[] = apps
+          .slice(0, limit)
+          .map((app: GooglePlayApp) => ({
+            appId: app.appId,
+            title: app.title,
+            icon: app.icon,
+            developer: app.developer,
+            developerId: app.developerId,
+            url: app.url,
+            summary: app.summary,
+            score: app.score,
+          }));
+
+        logger.info(`Successfully fetched and limited to ${results.length} apps from Play Store collection: ${type}`);
+        return res.json(results);
+      } catch (error) {
+        logger.error('Error fetching Play Store collection:', error);
+        return res.status(500).json({
+          error: 'Failed to fetch Play Store collection',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    // App Store collections
     let collection;
     switch (type) {
     // iOS Apps
@@ -550,13 +678,25 @@ app.get('/collection/:type', validateCommonParams, async (
       });
     }
 
-    const results = await client.list({
+    const apps = await client.list({
       collection,
       country: getCountryCode(country),
       language: lang,
-      num: 100,
+      num: limit,
     });
 
+    // Map and limit results
+    const results = apps.slice(0, limit).map(app => ({
+      id: app.id,
+      title: app.title,
+      icon: app.icon,
+      developer: app.developer,
+      url: app.url,
+      description: app.description,
+      score: app.score,
+    }));
+
+    logger.info(`Successfully fetched and limited to ${results.length} apps from App Store collection: ${type}`);
     return res.json(results);
   } catch (error) {
     logger.error('Error in collection endpoint:', error);

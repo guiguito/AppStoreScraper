@@ -32,7 +32,7 @@ import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import WorkIcon from '@mui/icons-material/Work';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 
-const categories = [
+const appStoreCategories = [
   { id: 6000, name: 'Business', icon: <BusinessIcon /> },
   { id: 6018, name: 'Books', icon: <MenuBookIcon /> },
   { id: 6017, name: 'Education', icon: <SchoolIcon /> },
@@ -50,20 +50,81 @@ const categories = [
   { id: 6005, name: 'Social', icon: <AppsIcon /> }
 ];
 
-function CategoryChips({ country }) {
+const playStoreCategories = [
+  { id: 'BUSINESS', name: 'Business', icon: <BusinessIcon /> },
+  { id: 'BOOKS_AND_REFERENCE', name: 'Books', icon: <MenuBookIcon /> },
+  { id: 'EDUCATION', name: 'Education', icon: <SchoolIcon /> },
+  { id: 'ENTERTAINMENT', name: 'Entertainment', icon: <TheatersIcon /> },
+  { id: 'FINANCE', name: 'Finance', icon: <AccountBalanceIcon /> },
+  { id: 'FOOD_AND_DRINK', name: 'Food & Drink', icon: <RestaurantIcon /> },
+  { id: 'GAME', name: 'Games', icon: <SportsEsportsIcon /> },
+  { id: 'HEALTH_AND_FITNESS', name: 'Health & Fitness', icon: <FitnessCenterIcon /> },
+  { id: 'LIFESTYLE', name: 'Lifestyle', icon: <LifestyleIcon /> },
+  { id: 'MEDICAL', name: 'Medical', icon: <LocalHospitalIcon /> },
+  { id: 'MUSIC_AND_AUDIO', name: 'Music', icon: <MusicNoteIcon /> },
+  { id: 'PHOTOGRAPHY', name: 'Photography', icon: <PhotoCameraIcon /> },
+  { id: 'PRODUCTIVITY', name: 'Productivity', icon: <WorkIcon /> },
+  { id: 'SHOPPING', name: 'Shopping', icon: <ShoppingCartIcon /> },
+  { id: 'SOCIAL', name: 'Social', icon: <AppsIcon /> }
+];
+
+function CategoryChips({ country, selectedStore }) {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [loading, setLoading] = useState(false);
   const [apps, setApps] = useState([]);
 
+  const renderAppCard = (app, position) => app && (
+    <Grid item xs={12} sm={6} md={4} lg={2.4} key={app.id}>
+      <Card
+        sx={{
+          cursor: 'pointer',
+          height: '100%',
+          '&:hover': { bgcolor: 'action.hover' },
+        }}
+        onClick={() => navigate(`/app/${selectedStore}/${app.id}?country=${country}`)}
+      >
+        <CardContent>
+          <Box display="flex" flexDirection="column" alignItems="center" gap={1}>
+            <Avatar
+              src={app.icon}
+              alt={app.title}
+              variant="rounded"
+              sx={{ width: 64, height: 64 }}
+            />
+            <Typography 
+              variant="subtitle2" 
+              align="center" 
+              sx={{ 
+                minHeight: '2.4em',
+                lineHeight: '1.2em',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {`#${position + 1} ${app.title}`}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {app.developer}
+            </Typography>
+          </Box>
+        </CardContent>
+      </Card>
+    </Grid>
+  );
+
   const handleCategoryClick = async (category) => {
     setSelectedCategory(category);
     setLoading(true);
     try {
-      const response = await fetch(buildApiUrl('/category-apps', {
+      const response = await fetch(buildApiUrl(`/category-apps/${selectedStore}`, {
         categoryId: category.id,
         country: country,
-        lang: 'en'
+        lang: 'en',
+        limit: 100
       }));
       const data = await response.json();
       setApps(data);
@@ -99,7 +160,7 @@ function CategoryChips({ country }) {
           m: 0.5
         }
       }}>
-        {categories.map((category) => (
+        {(selectedStore === 'appstore' ? appStoreCategories : playStoreCategories).map((category) => (
           <Chip
             key={category.id}
             icon={category.icon}
@@ -142,47 +203,7 @@ function CategoryChips({ country }) {
             </Box>
           ) : (
             <Grid container spacing={2}>
-              {apps.map((app) => (
-                <Grid item xs={12} sm={6} md={4} lg={2.4} key={app.id}>
-                  <Card
-                    sx={{
-                      cursor: 'pointer',
-                      height: '100%',
-                      '&:hover': { bgcolor: 'action.hover' },
-                    }}
-                    onClick={() => navigate(`/app/appstore/${app.id}?country=${country}`)}
-                  >
-                    <CardContent>
-                      <Box display="flex" flexDirection="column" alignItems="center" gap={1}>
-                        <Avatar
-                          src={app.icon}
-                          alt={app.title}
-                          variant="rounded"
-                          sx={{ width: 64, height: 64 }}
-                        />
-                        <Typography 
-                          variant="subtitle2" 
-                          align="center" 
-                          sx={{ 
-                            minHeight: '2.4em',
-                            lineHeight: '1.2em',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {app.title}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" noWrap>
-                          {app.developer}
-                        </Typography>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
+              {apps.map((app, index) => renderAppCard(app, index))}
             </Grid>
           )}
         </DialogContent>

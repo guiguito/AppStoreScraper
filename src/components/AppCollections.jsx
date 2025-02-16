@@ -4,7 +4,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
 import { useApiWithCache } from '../hooks/useApiWithCache';
 
-const collections = [
+const appStoreCollections = [
   { id: 'topfreeapplications', title: 'Top Free Apps' },
   { id: 'topgrossingapplications', title: 'Top Grossing' },
   { id: 'toppaidapplications', title: 'Top Paid Apps' },
@@ -13,69 +13,38 @@ const collections = [
   { id: 'newpaidapplications', title: 'New Paid Apps' }
 ];
 
-function AppCollections({ country }) {
+const playStoreCollections = [
+  { id: 'topselling_free', title: 'Top Free Apps' },
+  { id: 'topselling_paid', title: 'Top Paid Apps' },
+  { id: 'topgrossing', title: 'Top Grossing' }
+];
+
+function AppCollections({ country, selectedStore }) {
   const navigate = useNavigate();
+  // Define all useState hooks first
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState(null);
-  const [collectionData, setCollectionData] = useState({});
-  const [loading, setLoading] = useState(true);
 
-  // Create a separate hook call for each collection
-  const topFreeApps = useApiWithCache('/collection/topfreeapplications', { country });
-  const topGrossingApps = useApiWithCache('/collection/topgrossingapplications', { country });
-  const topPaidApps = useApiWithCache('/collection/toppaidapplications', { country });
-  const newApps = useApiWithCache('/collection/newapplications', { country });
-  const newFreeApps = useApiWithCache('/collection/newfreeapplications', { country });
-  const newPaidApps = useApiWithCache('/collection/newpaidapplications', { country });
+  const handleAppClick = (appId) => {
+    if (!appId) return;
+    navigate(`/app/${selectedStore}/${appId}?country=${country}`);
+  };
 
-  // Combine all results
-  useEffect(() => {
-    const results = [
-      { id: 'topfreeapplications', result: topFreeApps },
-      { id: 'topgrossingapplications', result: topGrossingApps },
-      { id: 'toppaidapplications', result: topPaidApps },
-      { id: 'newapplications', result: newApps },
-      { id: 'newfreeapplications', result: newFreeApps },
-      { id: 'newpaidapplications', result: newPaidApps }
-    ];
-
-    const newData = {};
-    let hasAllData = true;
-
-    results.forEach(({ id, result }) => {
-      if (result.data) {
-        newData[id] = result.data;
-      } else {
-        hasAllData = false;
-      }
-    });
-
-    if (hasAllData || !loading) {
-      setCollectionData(newData);
-    }
-    setLoading(results.some(({ result }) => result.loading));
-  }, [topFreeApps.data, topFreeApps.loading,
-      topGrossingApps.data, topGrossingApps.loading,
-      topPaidApps.data, topPaidApps.loading,
-      newApps.data, newApps.loading,
-      newFreeApps.data, newFreeApps.loading,
-      newPaidApps.data, newPaidApps.loading]);
-
-  const renderAppCard = (app) => (
-    <Grid item xs={12} sm={6} md={4} lg={2.4} key={app.id}>
+  const renderAppCard = (app, position) => app && typeof app === 'object' && (app.id || app.appId) && (
+    <Grid item xs={12} sm={6} md={4} lg={2.4} key={app.id || app.appId}>
       <Card
         sx={{
           cursor: 'pointer',
           height: '100%',
           '&:hover': { bgcolor: 'action.hover' },
         }}
-        onClick={() => navigate(`/app/appstore/${app.id}?country=${country}`)}
+        onClick={() => handleAppClick(app.id || app.appId)}
       >
         <CardContent>
           <Box display="flex" flexDirection="column" alignItems="center" gap={1}>
             <Avatar
-              src={app.icon}
-              alt={app.title}
+              src={app.icon || ''}
+              alt={app.title || 'App'}
               variant="rounded"
               sx={{ width: 64, height: 64 }}
             />
@@ -92,10 +61,10 @@ function AppCollections({ country }) {
                 textOverflow: 'ellipsis',
               }}
             >
-              {app.title}
+              {`#${position + 1} ${app.title || 'Untitled App'}`}
             </Typography>
             <Typography variant="caption" color="text.secondary" noWrap>
-              {app.developer}
+              {app.developer || 'Unknown Developer'}
             </Typography>
           </Box>
         </CardContent>
@@ -117,82 +86,107 @@ function AppCollections({ country }) {
     </Grid>
   );
 
-  return (
-    <>
-    <Box sx={{ my: { xs: 4, sm: 6 } }}>
-      {collections.map(({ id, title }) => (
-        <Box key={id} sx={{ mb: { xs: 4, sm: 6 } }}>
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            mb: 2
-          }}>
-            <Typography 
-              variant="h6"
-              sx={{
-                color: 'primary.main',
-                fontWeight: 600,
-                letterSpacing: '0.02em'
-              }}
-            >
-              {title}
-            </Typography>
-            <Typography 
-              variant="subtitle2" 
-              sx={{ 
-                color: 'text.secondary',
-                cursor: 'pointer',
-                '&:hover': { color: 'primary.main' }
-              }}
-              onClick={() => {
-                setSelectedCollection({ id, title });
-                setModalOpen(true);
-              }}
-            >
-              View all
-            </Typography>
-          </Box>
+  function CollectionGroup({ collection, country, selectedStore, onAppClick }) {
+    const { data, loading, error } = useApiWithCache(
+      `/collection/${selectedStore}/${collection.id.toLowerCase()}`,
+      { country, limit: 10 }
+    );
 
-          <Grid container spacing={2}>
-            {loading
-              ? Array(5).fill(0).map((_, i) => renderSkeleton())
-              : collectionData[id]?.slice(0, 5).map(renderAppCard)}
-          </Grid>
+    return (
+      <Box sx={{ mb: { xs: 4, sm: 6 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600, letterSpacing: '0.02em' }}>
+            {collection.title}
+          </Typography>
+          <Typography 
+            variant="subtitle2" 
+            sx={{ 
+              color: 'text.secondary',
+              cursor: 'pointer',
+              '&:hover': { color: 'primary.main' }
+            }}
+            onClick={() => {
+              setSelectedCollection({ id: collection.id, title: collection.title });
+              setModalOpen(true);
+            }}
+          >
+            View all
+          </Typography>
         </Box>
-      ))}
-    </Box>
-    <Dialog
-      open={modalOpen}
-      onClose={() => setModalOpen(false)}
-      maxWidth="lg"
-      fullWidth
-      PaperProps={{
-        sx: {
-          height: '90vh',
-          maxHeight: '90vh'
-        }
-      }}
-    >
-      <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        {selectedCollection?.title}
-        <IconButton
-          onClick={() => setModalOpen(false)}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
+        <Grid container spacing={2}>
+          {loading && [1, 2, 3, 4, 5, 6].map(i => <React.Fragment key={i}>{renderSkeleton()}</React.Fragment>)}
+          {!loading && data && data.map((app, index) => renderAppCard(app, index))}
+        </Grid>
+      </Box>
+    );
+  }
+
+  function CollectionModal({ collection, country, selectedStore, onAppClick, renderSkeleton }) {
+    const { data, loading } = useApiWithCache(
+      `/collection/${selectedStore}/${collection.id.toLowerCase()}`,
+      { country, limit: 100 }
+    );
+
+    return (
       <DialogContent dividers sx={{ p: 2 }}>
         <Grid container spacing={2}>
-          {selectedCollection && collectionData[selectedCollection.id]?.slice(0, 200).map(renderAppCard)}
+          {loading && [1, 2, 3, 4, 5, 6, 7, 8].map(i => <React.Fragment key={i}>{renderSkeleton()}</React.Fragment>)}
+          {!loading && data && data.map((app, index) => renderAppCard(app, index))}
         </Grid>
       </DialogContent>
-    </Dialog>
+    );
+  }
+
+  const collections = selectedStore === 'appstore' ? appStoreCollections : playStoreCollections || [];
+
+  return (
+    <>
+      <Box sx={{ my: { xs: 4, sm: 6 } }}>
+        {collections.map(collection => (
+          <CollectionGroup
+            key={collection.id}
+            collection={collection}
+            country={country}
+            selectedStore={selectedStore}
+            onAppClick={handleAppClick}
+          />
+        ))}
+      </Box>
+      <Dialog
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: {
+            height: '90vh',
+            maxHeight: '90vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {selectedCollection?.title}
+          <IconButton
+            onClick={() => setModalOpen(false)}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        {selectedCollection && (
+          <CollectionModal 
+             collection={selectedCollection} 
+             country={country} 
+             selectedStore={selectedStore} 
+             onAppClick={handleAppClick}
+             renderSkeleton={renderSkeleton}
+          />
+        )}
+      </Dialog>
     </>
   );
 }

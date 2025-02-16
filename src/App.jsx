@@ -5,6 +5,7 @@ import { Brightness4, Brightness7 } from '@mui/icons-material';
 import { createAppTheme } from './theme';
 import SearchBar from './components/SearchBar';
 import AppDetails from './components/AppDetails';
+import StoreSelector from './components/StoreSelector';
 
 import AppCollections from './components/AppCollections';
 import ReviewsDetails from './components/ReviewsDetails';
@@ -13,6 +14,7 @@ import CategoryChips from './components/CategoryChips';
 import { countries } from './components/CountrySelector';
 
 function HomePage({ country, onCountryChange }) {
+  const [selectedStore, setSelectedStore] = useState('appstore');
   return (
     <Box sx={{ mb: 4 }}>
       <Box 
@@ -50,9 +52,14 @@ function HomePage({ country, onCountryChange }) {
           AppScope
         </Typography>
       </Box>
-      <SearchBar country={country} onCountryChange={onCountryChange} />
-      <CategoryChips country={country} />
-      <AppCollections country={country} />
+      <Box mb={4}>
+        <SearchBar country={country} onCountryChange={onCountryChange} selectedStore={selectedStore} />
+      </Box>
+      <Box display="flex" justifyContent="center" mb={2}>
+        <StoreSelector selectedStore={selectedStore} onStoreChange={setSelectedStore} />
+      </Box>
+      <CategoryChips country={country} selectedStore={selectedStore} />
+      <AppCollections country={country} selectedStore={selectedStore} />
     </Box>
   );
 }
