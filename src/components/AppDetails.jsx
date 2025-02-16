@@ -25,11 +25,11 @@ import {
   CircularProgress,
   Container,
 } from '@mui/material';
-import { Download, PhoneIphone, ArrowBack, Language, Public } from '@mui/icons-material';
+import { Download, PhoneIphone, ArrowBack, Language, Public, Apple, Google } from '@mui/icons-material';
 import CollapsibleSection from './CollapsibleSection';
 
 function AppDetails({ country: initialCountry }) {
-  const { id } = useParams();
+  const { id, store } = useParams();
   const navigate = useNavigate();
   const [details, setDetails] = useState(null);
   const [reviews, setReviews] = useState([]);
@@ -75,9 +75,9 @@ function AppDetails({ country: initialCountry }) {
       try {
         // Fetch app details, similar apps, and developer apps in parallel
         const responses = await Promise.all([
-          fetch(buildApiUrl(`/app/${id}`, { lang: selectedLang, country: selectedCountry }), { signal }),
-          fetch(buildApiUrl(`/similar/${id}`, { lang: selectedLang, country: selectedCountry }), { signal }),
-          fetch(buildApiUrl(`/developer-apps/${id}`, { lang: selectedLang, country: selectedCountry }), { signal })
+          fetch(buildApiUrl(`/app/${store}/${id}`, { lang: selectedLang, country: selectedCountry }), { signal }),
+          fetch(buildApiUrl(`/similar/${store}/${id}`, { lang: selectedLang, country: selectedCountry }), { signal }),
+          fetch(buildApiUrl(`/developer-apps/${store}/${details?.developerId || id}`, { lang: selectedLang, country: selectedCountry }), { signal })
         ]);
 
         // Check if any response is not ok
@@ -129,7 +129,7 @@ function AppDetails({ country: initialCountry }) {
       setLoadingReviews(true);
       try {
         const response = await fetch(
-          buildApiUrl(`/reviews/${id}`, {
+          buildApiUrl(`/reviews/${store}/${id}`, {
             lang: selectedLang,
             country: selectedCountry,
             limit: 10,
@@ -199,14 +199,33 @@ function AppDetails({ country: initialCountry }) {
               <Box sx={{ position: 'sticky', top: 24 }}>
                 {/* App Icon and Basic Info */}
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
-                  {details.icon && (
-                    <Avatar
-                      src={details.icon}
-                      alt={details.title}
-                      variant="rounded"
-                      sx={{ width: 120, height: 120, mb: 2 }}
-                    />
-                  )}
+                  <Box sx={{ position: 'relative', mb: 2 }}>
+                    {details.icon && (
+                      <Avatar
+                        src={details.icon}
+                        alt={details.title}
+                        variant="rounded"
+                        sx={{ width: 120, height: 120 }}
+                      />
+                    )}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        bottom: -10,
+                        right: -10,
+                        bgcolor: 'background.paper',
+                        borderRadius: '50%',
+                        padding: 0.5,
+                        boxShadow: 1
+                      }}
+                    >
+                      {details.store === 'appstore' ? (
+                        <Apple sx={{ fontSize: 24, color: 'text.secondary' }} />
+                      ) : (
+                        <Google sx={{ fontSize: 24, color: 'text.secondary' }} />
+                      )}
+                    </Box>
+                  </Box>
                   <Typography 
                     variant="h5" 
                     align="center" 
@@ -264,17 +283,31 @@ function AppDetails({ country: initialCountry }) {
                     Version: {details.version}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" paragraph>
-                    Required OS Version: {details.requiredOsVersion}
+                    Required OS Version: {details.store === 'appstore' ? details.requiredOsVersion : details.androidVersion || 'Varies with device'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" paragraph>
-                    Content Rating: {details.contentRating}
+                    Content Rating: {details.contentRating || details.contentRatingDescription || 'Not specified'}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" paragraph>
-                    Released: {new Date(details.released).toLocaleDateString()}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" paragraph>
-                    Updated: {new Date(details.updated).toLocaleDateString()}
-                  </Typography>
+                  {details.released && (
+                    <Typography variant="body2" color="text.secondary" paragraph>
+                      Released: {new Date(details.released).toLocaleDateString()}
+                    </Typography>
+                  )}
+                  {details.updated && (
+                    <Typography variant="body2" color="text.secondary" paragraph>
+                      Updated: {new Date(details.updated).toLocaleDateString()}
+                    </Typography>
+                  )}
+                  {details.store === 'playstore' && details.size && (
+                    <Typography variant="body2" color="text.secondary" paragraph>
+                      Size: {details.size}
+                    </Typography>
+                  )}
+                  {details.store === 'playstore' && details.installs && (
+                    <Typography variant="body2" color="text.secondary" paragraph>
+                      Installs: {details.installs}
+                    </Typography>
+                  )}
                 </Paper>
 
                 {/* Ratings */}
@@ -504,26 +537,29 @@ function AppDetails({ country: initialCountry }) {
             <Grid item xs={12} md={8}>
               {/* Screenshots Sections */}
               {details?.screenshots && details.screenshots.length > 0 && (
-                <CollapsibleSection title="iPhone Screenshots" defaultExpanded={true}>
+                <CollapsibleSection 
+                  title={details.store === 'appstore' ? 'iPhone Screenshots' : 'Screenshots'} 
+                  defaultExpanded={true}
+                >
                   <ScreenshotGallery screenshots={details.screenshots} />
                 </CollapsibleSection>
               )}
 
-              {details?.ipadScreenshots && details.ipadScreenshots.length > 0 && (
+              {details?.ipadScreenshots && details.ipadScreenshots.length > 0 && details.store === 'appstore' && (
                 <CollapsibleSection title="iPad Screenshots" defaultExpanded={false}>
                   <ScreenshotGallery screenshots={details.ipadScreenshots} />
                 </CollapsibleSection>
               )}
 
               {/* What's New */}
-              {details?.releaseNotes && (
+              {(details?.releaseNotes || details?.recentChanges) && (
                 <Box sx={{ mb: 4 }}>
                   <Typography variant="h6" gutterBottom>
                     What's New
                   </Typography>
                   <Paper variant="outlined" sx={{ p: 2 }}>
                     <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                      {details.releaseNotes}
+                      {details.releaseNotes || details.recentChanges}
                     </Typography>
                   </Paper>
                 </Box>

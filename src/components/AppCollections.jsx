@@ -69,7 +69,7 @@ function AppCollections({ country }) {
           height: '100%',
           '&:hover': { bgcolor: 'action.hover' },
         }}
-        onClick={() => navigate(`/app/${app.id}?country=${country}`)}
+        onClick={() => navigate(`/app/appstore/${app.id}?country=${country}`)}
       >
         <CardContent>
           <Box display="flex" flexDirection="column" alignItems="center" gap={1}>

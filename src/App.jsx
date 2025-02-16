@@ -173,8 +173,8 @@ function AppContent() {
             <ErrorBoundary>
               <Routes>
                 <Route path="/" element={<HomePage country={selectedCountry} onCountryChange={handleCountryChange} />} />
-                <Route path="/app/:id" element={<AppDetails country={selectedCountry} />} />
-                <Route path="/app/:id/reviews" element={<ReviewsDetails />} />
+                <Route path="/app/:store/:id" element={<AppDetails country={selectedCountry} />} />
+                <Route path="/app/:store/:id/reviews" element={<ReviewsDetails />} />
               </Routes>
             </ErrorBoundary>
           </Container>

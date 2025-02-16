@@ -447,7 +447,13 @@ function ReviewsDetails() {
                     {index > 0 && <Divider sx={{ my: 2 }} />}
                     <Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                        <Rating value={review.score || review.rating} readOnly size="small" />
+                        <Rating 
+                          value={review.score || 0}
+                          readOnly 
+                          size="small" 
+                          precision={0.5}
+                          max={5}
+                        />
                         <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
                           {DateTime.fromISO(review.updated).setLocale('fr').toLocaleString(DateTime.DATE_FULL)}
                         </Typography>

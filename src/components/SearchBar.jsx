@@ -103,7 +103,7 @@ function SearchBar({ country, onCountryChange }) {
             }}
             onChange={(event, newValue) => {
               if (newValue) {
-                navigate(`/app/${newValue.id}?lang=en&country=${country}`);
+                navigate(`/app/${newValue.store}/${newValue.id}?lang=en&country=${country}`);
               }
             }}
             renderInput={(params) => (

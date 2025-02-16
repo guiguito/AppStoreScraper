@@ -5,6 +5,7 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initializeApp } from 'firebase-admin/app';
 
 import { AppStoreClient, Country, Collection, Sort, Review } from 'app-store-client';
+import type { IReviewsItem } from 'google-play-scraper';
 import { Parser } from 'json2csv';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: google-play-scraper works with default import despite the type error
@@ -28,11 +29,24 @@ interface AppStoreResult {
   score: number;
 }
 
+// Interface for raw Google Play app data
+interface GooglePlayApp {
+  appId: string;
+  title: string;
+  url: string;
+  summary?: string;
+  icon: string;
+  developer: string;
+  developerId?: string;
+  score: number;
+}
+
 interface PlayStoreResult {
   appId: string;
   title: string;
   icon: string;
   developer: string;
+  developerId?: string;
   url: string;
   summary?: string;
   score: number;
@@ -327,79 +341,129 @@ app.get('/search', validateCommonParams, async (
   }
 });
 
-app.get('/app/:id', validateCommonParams, async (
+app.get('/app/:store/:id', validateCommonParams, async (
   req: ValidatedRequest,
   res: express.Response,
   next: express.NextFunction,
 ) => {
   try {
-    const { id } = req.params;
+    const { id, store } = req.params;
     const { lang, country } = req.validatedParams!;
 
-    // Fetch app data first - if this fails, we want to return an error
-    const appData = await client.app({
-      id: id.toString(),
-      country: getCountryCode(country),
-      language: lang,
-    });
-
-    // Fetch ratings and privacy data in parallel, handle errors individually
-    const [ratingsData, privacyData] = await Promise.allSettled([
-      client.ratings({
+    if (store === 'appstore') {
+      // Fetch app data first - if this fails, we want to return an error
+      const appData = await client.app({
         id: id.toString(),
         country: getCountryCode(country),
         language: lang,
-      }),
-      client.privacy({
-        id: id.toString(),
-        country: getCountryCode(country),
-        language: lang,
-      }),
-    ]);
+      });
 
-    // Process ratings data if available
-    let ratingsWithPercentages = {
-      total: 0,
-      average: appData.score || 0,
-      histogram: {},
-    };
+      // Fetch ratings and privacy data in parallel, handle errors individually
+      const [ratingsData, privacyData] = await Promise.allSettled([
+        client.ratings({
+          id: id.toString(),
+          country: getCountryCode(country),
+          language: lang,
+        }),
+        client.privacy({
+          id: id.toString(),
+          country: getCountryCode(country),
+          language: lang,
+        }),
+      ]);
 
-    if (ratingsData.status === 'fulfilled') {
-      const rData = ratingsData.value;
-      const totalRatings = rData.ratings || 0;
-      const histogram = rData.histogram || {};
-      const histogramWithPercentages = Object.entries(histogram).reduce((acc, [rating, count]) => {
-        acc[rating] = {
-          count,
-          percentage: totalRatings > 0 ? ((count / totalRatings) * 100).toFixed(1) + '%' : '0.0%',
-        };
-        return acc;
-      }, {} as Record<string, { count: number; percentage: string }>);
-
-      ratingsWithPercentages = {
-        total: totalRatings,
+      // Process ratings data if available
+      let ratingsWithPercentages = {
+        total: 0,
         average: appData.score || 0,
-        histogram: histogramWithPercentages,
+        histogram: {},
       };
-    } else {
-      logger.warn('Failed to fetch ratings:', ratingsData.reason);
-    }
 
-    // Process privacy data if available
-    let privacyInfo = {};
-    if (privacyData.status === 'fulfilled') {
-      privacyInfo = privacyData.value;
-    } else {
-      logger.warn('Failed to fetch privacy data:', privacyData.reason);
-    }
+      if (ratingsData.status === 'fulfilled') {
+        const rData = ratingsData.value;
+        const totalRatings = rData.ratings || 0;
+        const histogram = rData.histogram || {};
+        const histogramWithPercentages = Object.entries(histogram).reduce((acc, [rating, count]) => {
+          acc[rating] = {
+            count,
+            percentage: totalRatings > 0 ? ((count / totalRatings) * 100).toFixed(1) + '%' : '0.0%',
+          };
+          return acc;
+        }, {} as Record<string, { count: number; percentage: string }>);
 
-    const availableCountries = await fetchAvailableCountries(id.toString());
-    return res.json({ 
-      ...appData, 
-      ratings: ratingsWithPercentages,
-      ...privacyInfo,
-      availableCountries,
-    });
+        ratingsWithPercentages = {
+          total: totalRatings,
+          average: appData.score || 0,
+          histogram: histogramWithPercentages,
+        };
+      } else {
+        logger.warn('Failed to fetch ratings:', ratingsData.reason);
+      }
+
+      // Process privacy data if available
+      let privacyInfo = {};
+      if (privacyData.status === 'fulfilled') {
+        privacyInfo = privacyData.value;
+      } else {
+        logger.warn('Failed to fetch privacy data:', privacyData.reason);
+      }
+
+      const availableCountries = await fetchAvailableCountries(id.toString());
+      return res.json({ 
+        ...appData, 
+        ratings: ratingsWithPercentages,
+        ...privacyInfo,
+        availableCountries,
+        store: 'appstore',
+      });
+    } else if (store === 'playstore') {
+      const appData = await gplay.app({
+        appId: id,
+        country: country.toLowerCase(),
+        lang: lang,
+      });
+
+      // Format Play Store data to match our unified format
+      const formattedData = {
+        id: appData.appId,
+        title: appData.title,
+        description: appData.description,
+        releaseNotes: appData.recentChanges,
+        version: appData.version,
+        released: appData.released,
+        updated: appData.updated,
+        size: appData.size,
+        androidVersion: appData.androidVersion,
+        contentRating: appData.contentRating,
+        contentRatingDescription: appData.contentRatingDescription,
+        developer: appData.developer,
+        developerUrl: appData.developerWebsite,
+        icon: appData.icon,
+        screenshots: appData.screenshots,
+        score: appData.score,
+        ratings: {
+          total: appData.ratings || 0,
+          average: appData.score || 0,
+          histogram: Object.entries(appData.histogram || {}).reduce<
+            Record<string, { count: number; percentage: string }>
+          >((acc, [rating, count]) => {
+            const numericCount = typeof count === 'number' ? count : 0;
+            acc[rating] = {
+              count: numericCount,
+              percentage: appData.ratings > 0 ? ((numericCount / appData.ratings) * 100).toFixed(1) + '%' : '0.0%',
+            };
+            return acc;
+          }, {}),
+        },
+        price: appData.priceText === 'Free' ? 0 : parseFloat(appData.priceText?.replace('$', '') || '0'),
+        url: appData.url,
+        installs: appData.installs,
+        genres: appData.genreId ? [appData.genreId] : [],
+        store: 'playstore',
+      };
+
+      return res.json(formattedData);
+    }
   } catch (error) {
     logger.error('Error in app details endpoint:', error);
     return next(error);
@@ -500,50 +564,81 @@ app.get('/collection/:type', validateCommonParams, async (
   }
 });
 
-app.get('/reviews/:id', validateCommonParams, async (
+app.get('/reviews/:store/:id', validateCommonParams, async (
   req: ValidatedRequest,
   res: express.Response,
   next: express.NextFunction,
 ) => {
   try {
-    const { id } = req.params;
+    const { id, store } = req.params;
     const { lang, country } = req.validatedParams!;
     const limit = parseInt(req.query.limit?.toString() || '50');
 
-    // Array to store all reviews
-    let allReviews: Review[] = [];
-    let page = 0;
-    let hasMore = true;
+    if (store === 'appstore') {
+      // Array to store all reviews
+      let allReviews: Review[] = [];
+      let page = 0;
+      let hasMore = true;
 
-    // Fetch reviews until we get the desired limit
-    while (hasMore && allReviews.length < limit) {
-      try {
-        const results = await client.reviews({
-          id: id.toString(),
-          country: getCountryCode(country),
-          language: lang,
-          page,
-          sort: Sort.RECENT,
-        });
+      // Fetch reviews until we get the desired limit
+      while (hasMore && allReviews.length < limit) {
+        try {
+          const results = await client.reviews({
+            id: id.toString(),
+            country: getCountryCode(country),
+            language: lang,
+            page,
+            sort: Sort.RECENT,
+          });
 
-        if (results && results.length > 0) {
-          allReviews = [...allReviews, ...results];
-          page++;
-        } else {
-          hasMore = false;
+          if (results && results.length > 0) {
+            allReviews = [...allReviews, ...results.map(review => ({
+              ...review,
+              store: 'appstore',
+              score: review.score, // App Store reviews already have score
+            }))];
+            page++;
+          } else {
+            hasMore = false;
+          }
+        } catch (error) {
+          logger.error(`Error fetching page ${page}:`, error);
+          break;
         }
-      } catch (error) {
-        logger.error(`Error fetching page ${page}:`, error);
-        break;
       }
-    }
 
-    // Trim to limit if we got more reviews than requested
-    if (allReviews.length > limit) {
-      allReviews = allReviews.slice(0, limit);
-    }
+      // Trim to limit if we got more reviews than requested
+      if (allReviews.length > limit) {
+        allReviews = allReviews.slice(0, limit);
+      }
 
-    return res.json(allReviews);
+      return res.json(allReviews);
+    } else if (store === 'playstore') {
+      const result = await gplay.reviews({
+        appId: id,
+        country: country.toLowerCase(),
+        lang: lang,
+        sort: gplay.sort.NEWEST,
+        num: limit,
+      });
+
+      // Format Play Store reviews to match App Store format
+      const formattedReviews = result.data.map((review: IReviewsItem) => ({
+        id: review.id || String(Date.now()),  // Generate an ID if not present
+        userName: review.userName,
+        title: '',  // Play Store reviews don't have titles
+        text: review.text || '',
+        rating: review.score,
+        score: review.score, // Add normalized score field
+        version: review.version || 'Unknown',
+        updated: review.date,
+        store: 'playstore',
+      }));
+
+      return res.json(formattedReviews);
+    } else {
+      return res.status(400).json({ error: 'Invalid store parameter. Use appstore or playstore.' });
+    }
   } catch (error) {
     return next(error);
   }
@@ -697,52 +792,149 @@ app.get('/reviews/:id/all', validateCommonParams, async (
   }
 });
 
-app.get('/reviews/:id/csv', validateCommonParams, async (
+// Similar apps endpoint
+app.get('/similar/:store/:id', validateCommonParams, async (
+  req: ValidatedRequest,
+  res: express.Response,
+  next: express.NextFunction,
+) => {
+  try {
+    const { id, store } = req.params;
+    const { lang, country } = req.validatedParams!;
+
+    if (store === 'appstore') {
+      try {
+        const similarApps = await client.similarApps({
+          id: id.toString(),
+          country: getCountryCode(country),
+          language: lang,
+        });
+
+        return res.json(similarApps.map(app => ({
+          ...app,
+          store: 'appstore',
+        })));
+      } catch (error) {
+        logger.info(`No similar apps found in App Store for ${id}`);
+        return res.json([]);
+      }
+    } else if (store === 'playstore') {
+      try {
+        const similarApps = await gplay.similar({
+          appId: id,
+          country: country.toLowerCase(),
+          lang: lang,
+        });
+
+        // For Play Store, map fields to match App Store format
+        return res.json(similarApps.map((app: GooglePlayApp) => ({
+          id: app.appId,
+          title: app.title,
+          url: app.url,
+          description: app.summary || '',
+          icon: app.icon,
+          developer: app.developer,
+          developerId: app.developerId || '',
+          score: app.score,
+          store: 'playstore',
+        })));
+      } catch (error) {
+        logger.info(`No similar apps found in Play Store for ${id}`);
+        return res.json([]);
+      }
+    } else {
+      return res.status(400).json({ error: 'Invalid store parameter. Use appstore or playstore.' });
+    }
+  } catch (error) {
+    logger.error('Error in similar apps endpoint:', error);
+    return next(error);
+  }
+});
+
+app.get('/reviews/:store/:id/csv', validateCommonParams, async (
   req: ValidatedRequest,
   res: express.Response,
 ) => {
   try {
-    const { id } = req.params;
+    const { id, store } = req.params;
     const { lang, country } = req.validatedParams!;
+
+    if (store !== 'appstore' && store !== 'playstore') {
+      return res.status(400).json({ error: 'Invalid store parameter. Use appstore or playstore.' });
+    }
 
     // Verify app exists first
     try {
-      await client.app({
-        id: id.toString(),
-        country: getCountryCode(country),
-      });
+      if (store === 'appstore') {
+        await client.app({
+          id: id.toString(),
+          country: getCountryCode(country),
+        });
+      } else {
+        await gplay.app({ appId: id });
+      }
     } catch (error) {
-      logger.error(`App ${id} not found:`, error);
+      logger.error(`App ${id} not found in ${store}:`, error);
       return res.status(404).json({
-        error: `App with ID ${id} not found in the ${country} App Store`,
+        error: `App with ID ${id} not found in the ${store} for ${country}`,
       });
     }
 
     // Array to store all reviews
-    let allReviews: Review[] = [];
+    let allReviews: any[] = [];
     let page = 0;
     let hasMore = true;
     const MAX_PAGES = 20; // Safety limit to prevent infinite loops
+    const REVIEWS_PER_PAGE = 100;
 
-    logger.info(`Starting to fetch reviews for app ${id}`);
+    logger.info(`Starting to fetch reviews for app ${id} from ${store}`);
     logger.info(`Country: ${country}, Language: ${lang}`);
 
     // Fetch all pages
     while (hasMore && page <= MAX_PAGES) {
       try {
         logger.info(`Fetching page ${page} for app ${id}...`);
-        const results = await client.reviews({
-          id: id.toString(),
-          country: getCountryCode(country),
-          language: lang,
-          page,
-          sort: Sort.RECENT,
-        });
+        let results;
+
+        if (store === 'appstore') {
+          results = await client.reviews({
+            id: id.toString(),
+            country: getCountryCode(country),
+            language: lang,
+            page,
+            sort: Sort.RECENT,
+          });
+        } else {
+          // For Play Store, fetch reviews with pagination
+          results = await gplay.reviews({
+            appId: id,
+            country: country.toLowerCase(),
+            lang: lang,
+            sort: gplay.sort.NEWEST,
+            num: REVIEWS_PER_PAGE,
+          });
+          // Extract the reviews from the response
+          results = results.data;
+          // Play Store has no more pages after this
+          hasMore = false;
+        }
 
         logger.info(`Page ${page} received ${results?.length ?? 0} reviews`);
 
         if (results && results.length > 0) {
-          allReviews = [...allReviews, ...results];
+          // Format reviews to a common structure
+          const formattedReviews = store === 'appstore' ? results : results.map((review: any) => ({
+            id: review.id || String(Date.now()),
+            userName: review.userName,
+            title: '',
+            text: review.text || '',
+            rating: review.score,
+            version: review.version || 'Unknown',
+            updated: review.date,
+            store: 'playstore',
+          }));
+
+          allReviews = [...allReviews, ...formattedReviews];
           logger.info(`Total reviews collected: ${allReviews.length} (after page ${page})`);
           page++;
         } else {
@@ -804,22 +996,51 @@ app.get('/reviews/:id/csv', validateCommonParams, async (
 });
 
 // Get apps by developer ID
-app.get('/developer-apps/:devId', validateCommonParams, async (
+app.get('/developer-apps/:store/:id', validateCommonParams, async (
   req: ValidatedRequest,
   res: express.Response,
   next: express.NextFunction,
 ) => {
   try {
-    const { devId } = req.params;
+    const { id, store } = req.params;
     const { lang, country } = req.validatedParams!;
 
-    const results = await client.appsByDeveloper({
-      devId: devId.toString(),
-      country: getCountryCode(country),
-      language: lang,
-    });
+    if (store === 'appstore') {
+      try {
+        const results = await client.appsByDeveloper({
+          devId: id.toString(),
+          country: getCountryCode(country),
+          language: lang,
+        });
 
-    return res.json(results);
+        return res.json(results.map(app => ({
+          ...app,
+          store: 'appstore',
+        })));
+      } catch (error) {
+        logger.info(`No developer apps found in App Store for ${id}`);
+        return res.json([]);
+      }
+    } else if (store === 'playstore') {
+      try {
+        const results = await gplay.developer({ devId: id });
+        return res.json(results.map((app: PlayStoreResult) => ({
+          id: app.appId,
+          title: app.title,
+          url: app.url,
+          description: app.summary || '',
+          icon: app.icon,
+          developer: app.developer,
+          score: app.score,
+          store: 'playstore',
+        })));
+      } catch (error) {
+        logger.info(`No developer apps found in Play Store for ${id}`);
+        return res.json([]);
+      }
+    } else {
+      return res.status(400).json({ error: 'Invalid store parameter. Use appstore or playstore.' });
+    }
   } catch (error) {
     logger.error('Error in developer-apps endpoint:', error);
     return next(error);
