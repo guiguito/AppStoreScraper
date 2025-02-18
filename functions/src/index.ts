@@ -5,7 +5,7 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initializeApp } from 'firebase-admin/app';
 
 import { AppStoreClient, Country, Collection, Sort, Review } from 'app-store-client';
-import type { IReviewsItem, category as PlayStoreCategory } from 'google-play-scraper';
+import type { category as PlayStoreCategory } from 'google-play-scraper';
 import { Parser } from 'json2csv';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: google-play-scraper works with default import despite the type error
@@ -30,6 +30,29 @@ interface AppStoreResult {
 }
 
 // Interface for raw Google Play app data
+interface GooglePlayReview {
+  id: string;
+  userName: string;
+  text: string;
+  score: number;
+  version?: string;
+  date: string;
+}
+
+interface UnifiedReview {
+  id: string;
+  userName: string;
+  title: string;
+  text: string;
+  rating: number;
+  score: number;
+  version: string;
+  updated: string;
+  store: 'appstore' | 'playstore';
+  userUrl: string;
+  url: string;
+}
+
 interface GooglePlayApp {
   appId: string;
   title: string;
@@ -714,9 +737,9 @@ app.get('/reviews/:store/:id', validateCommonParams, async (
     const { lang, country } = req.validatedParams!;
     const limit = parseInt(req.query.limit?.toString() || '50');
 
+    let allReviews: Review[] = [];
+
     if (store === 'appstore') {
-      // Array to store all reviews
-      let allReviews: Review[] = [];
       let page = 0;
       let hasMore = true;
 
@@ -735,66 +758,80 @@ app.get('/reviews/:store/:id', validateCommonParams, async (
             allReviews = [...allReviews, ...results.map(review => ({
               ...review,
               store: 'appstore',
-              score: review.score, // App Store reviews already have score
+              rating: review.score, // Map App Store's 'score' to 'rating'
             }))];
             page++;
           } else {
             hasMore = false;
           }
         } catch (error) {
-          logger.error(`Error fetching page ${page}:`, error);
+          logger.error(`Error fetching App Store reviews page ${page}:`, error);
           break;
         }
       }
-
-      // Trim to limit if we got more reviews than requested
-      if (allReviews.length > limit) {
-        allReviews = allReviews.slice(0, limit);
-      }
-
-      return res.json(allReviews);
     } else if (store === 'playstore') {
-      const result = await gplay.reviews({
-        appId: id,
-        country: country.toLowerCase(),
-        lang: lang,
-        sort: gplay.sort.NEWEST,
-        num: limit,
-      });
+      const { id } = req.params;
+      const { lang, country } = req.validatedParams!;
+      const limit = parseInt(req.query.limit?.toString() || '50');
+      
+      try {
+        const results = await gplay.reviews({
+          appId: id,
+          lang: lang,
+          country: country.toLowerCase(),
+          num: limit,
+          sort: gplay.sort.NEWEST
+        });
 
-      // Format Play Store reviews to match App Store format
-      const formattedReviews = result.data.map((review: IReviewsItem) => ({
-        id: review.id || String(Date.now()),  // Generate an ID if not present
-        userName: review.userName,
-        title: '',  // Play Store reviews don't have titles
-        text: review.text || '',
-        rating: review.score,
-        score: review.score, // Add normalized score field
-        version: review.version || 'Unknown',
-        updated: review.date,
-        store: 'playstore',
-      }));
-
-      return res.json(formattedReviews);
+        if (results && results.data) {
+          allReviews = results.data.map((review: GooglePlayReview) => ({
+            id: review.id,
+            userName: review.userName,
+            title: '',  // Google Play reviews don't have titles
+            text: review.text || '',
+            rating: review.score,
+            score: review.score,
+            version: review.version || '',
+            updated: review.date,
+            store: 'playstore',
+            userUrl: '',  // Play Store doesn't provide these URLs
+            url: ''
+          }));
+        }
+      } catch (error) {
+        logger.error('Error fetching Google Play Store reviews:', error);
+        throw error;
+      }
     } else {
-      return res.status(400).json({ error: 'Invalid store parameter. Use appstore or playstore.' });
+      return res.status(400).json({ error: 'Invalid store parameter. Must be either "appstore" or "playstore"' });
     }
+
+    // Trim to limit if we got more reviews than requested
+    if (allReviews.length > limit) {
+      allReviews = allReviews.slice(0, limit);
+    }
+
+    return res.json(allReviews);
   } catch (error) {
     return next(error);
   }
 });
 
 // Sentiment analysis endpoint
-app.get('/reviews/:id/sentiment', validateCommonParams, async (
+app.get('/reviews/:store/:id/sentiment', validateCommonParams, async (
   req: ValidatedRequest,
   res: express.Response,
   next: express.NextFunction,
 ) => {
   try {
-    const { id } = req.params;
+    const { id, store } = req.params;
     const { lang, country } = req.validatedParams!;
     const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
     const endDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
+
+    if (store !== 'appstore' && store !== 'playstore') {
+      return res.status(400).json({ error: 'Invalid store parameter. Must be either "appstore" or "playstore"' });
+    }
 
     // Validate dates if provided
     if (startDate && isNaN(startDate.getTime())) {
@@ -808,57 +845,114 @@ app.get('/reviews/:id/sentiment', validateCommonParams, async (
     }
 
     // Fetch reviews first
-    const allReviews: Review[] = [];
-    let page = 0;
-    let hasMore = true;
+    const allReviews: UnifiedReview[] = [];
     const MAX_REVIEWS = 500; // Maximum number of reviews to analyze
 
     const dateRange = `${startDate?.toISOString() || 'all'} - ${endDate?.toISOString() || 'all'}`;
     logger.info(`Fetching reviews with date range: ${dateRange}`);
 
-    while (hasMore && page < 20 && allReviews.length < MAX_REVIEWS) {
-      // Increased page limit for better date range coverage
-      try {
-        const results = await client.reviews({
-          id: id.toString(),
-          country: getCountryCode(country),
-          language: lang,
-          page,
-          sort: Sort.RECENT,
-        });
+    if (store === 'appstore') {
+      let page = 0;
+      let hasMore = true;
 
-        if (!results || results.length === 0) {
-          hasMore = false;
-          break;
-        }
+      while (hasMore && page < 20 && allReviews.length < MAX_REVIEWS) {
+        try {
+          const results = await client.reviews({
+            id: id.toString(),
+            country: getCountryCode(country),
+            language: lang,
+            page,
+            sort: Sort.RECENT,
+          });
 
-        // Filter reviews by date range
-        for (const review of results) {
-          const reviewDate = new Date(review.updated);
-          
-          // Stop if we've gone past the start date (reviews are in descending order)
-          if (startDate && reviewDate < startDate) {
+          if (!results || results.length === 0) {
             hasMore = false;
             break;
           }
 
-          // Only add reviews within the date range
-          if ((!startDate || reviewDate >= startDate) && 
-              (!endDate || reviewDate <= endDate)) {
-            allReviews.push(review);
+          // Filter reviews by date range
+          for (const review of results) {
+            const reviewDate = new Date(review.updated);
             
-            // Stop if we've reached the maximum number of reviews
-            if (allReviews.length >= MAX_REVIEWS) {
+            // Stop if we've gone past the start date (reviews are in descending order)
+            if (startDate && reviewDate < startDate) {
               hasMore = false;
               break;
             }
+
+            // Only add reviews within the date range
+            if ((!startDate || reviewDate >= startDate) && 
+                (!endDate || reviewDate <= endDate)) {
+              allReviews.push({
+                id: review.id,
+                userName: review.userName,
+                title: review.title,
+                text: review.text,
+                rating: review.score,
+                score: review.score,
+                version: review.version,
+                updated: review.updated,
+                store: 'appstore',
+                userUrl: review.userUrl,
+                url: review.url
+              });
+              
+              // Stop if we've reached the maximum number of reviews
+              if (allReviews.length >= MAX_REVIEWS) {
+                hasMore = false;
+                break;
+              }
+            }
+          }
+
+          page++;
+        } catch (error) {
+          logger.error(`Error fetching App Store reviews page ${page}:`, error);
+          break;
+        }
+      }
+    } else { // playstore
+      try {
+        const results = await gplay.reviews({
+          appId: id,
+          lang: lang,
+          country: country.toLowerCase(),
+          sort: gplay.sort.NEWEST,
+          num: MAX_REVIEWS // Request maximum number of reviews
+        });
+
+        if (results && results.data) {
+          // Filter and format Play Store reviews
+          for (const review of results.data) {
+            const reviewDate = new Date(review.date);
+            
+            // Only add reviews within the date range
+            if ((!startDate || reviewDate >= startDate) && 
+                (!endDate || reviewDate <= endDate)) {
+              allReviews.push({
+                id: review.id,
+                title: '', // Play Store reviews don't have titles
+                userName: review.userName,
+                rating: review.score,
+                score: review.score,
+                text: review.text || '',
+                updated: reviewDate.toISOString(),
+                store: 'playstore',
+                version: review.version || '',
+                userUrl: '',
+                url: ''
+              });
+              
+              // Stop if we've reached the maximum number of reviews
+              if (allReviews.length >= MAX_REVIEWS) {
+                break;
+              }
+            }
           }
         }
-
-        page++;
       } catch (error) {
-        logger.error(`Error fetching page ${page}:`, error);
-        break;
+        logger.error('Error fetching Google Play Store reviews:', error);
+        throw error;
       }
     }
 
@@ -1064,13 +1158,7 @@ app.get('/reviews/:store/:id/csv', validateCommonParams, async (
         if (results && results.length > 0) {
           // Format reviews to a common structure
           const formattedReviews = store === 'appstore' ? results : results.map((review: any) => ({
-            id: review.id || String(Date.now()),
-            userName: review.userName,
-            title: '',
-            text: review.text || '',
-            rating: review.score,
-            version: review.version || 'Unknown',
-            updated: review.date,
+            ...review,
             store: 'playstore',
           }));
 

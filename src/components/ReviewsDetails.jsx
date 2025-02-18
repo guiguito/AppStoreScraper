@@ -33,6 +33,7 @@ DateTime.local().setLocale('fr');
 
 function ReviewsDetails() {
   const { getCachedData, setCachedData } = useDataCache();
+  const { id, store } = useParams();
   const [sentimentData, setSentimentData] = useState(null);
   const [loadingSentiment, setLoadingSentiment] = useState(false);
   const [sentimentError, setSentimentError] = useState(null);
@@ -54,7 +55,6 @@ function ReviewsDetails() {
     if (newDate && !newDate.isValid) return;
     setEndDate(newDate);
   };
-  const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [reviews, setReviews] = useState([]);
@@ -117,15 +117,15 @@ function ReviewsDetails() {
       };
 
       // Create URL with date range parameters
-      const url = new URL(buildApiUrl(`/reviews/${id}/sentiment`));
+      const url = new URL(buildApiUrl(`/reviews/${store}/${id}/sentiment`));
       Object.entries(params).forEach(([key, value]) => {
         if (value) url.searchParams.append(key, value);
       });
 
       console.log('Fetching sentiment analysis with params:', params);
 
-      // Create a cache key that includes the date range
-      const cacheKey = `/reviews/${id}/sentiment/${startDate?.toISODate()}_${endDate?.toISODate()}`;
+      // Create a cache key that includes the date range and store
+      const cacheKey = `/reviews/${store}/${id}/sentiment/${startDate?.toISODate()}_${endDate?.toISODate()}`;
       const cached = getCachedData(cacheKey, params);
       if (cached) {
         setSentimentData(cached.data);
@@ -157,7 +157,7 @@ function ReviewsDetails() {
     if (reviews.length > 0) {
       fetchSentiment();
     }
-  }, [id, selectedLang, selectedCountry, reviews, getCachedData, setCachedData, startDate, endDate]);
+  }, [id, store, selectedLang, selectedCountry, reviews, getCachedData, setCachedData, startDate, endDate]);
 
 
 
@@ -183,7 +183,7 @@ function ReviewsDetails() {
       }
 
       try {
-        const response = await fetch(buildApiUrl(`/app/${id}`, params));
+        const response = await fetch(buildApiUrl(`/app/${store}/${id}`, params));
         if (!response.ok) {
           throw new Error('Failed to fetch app details');
         }
@@ -197,7 +197,7 @@ function ReviewsDetails() {
     };
 
     fetchAppDetails();
-  }, [id, selectedLang, selectedCountry]);
+  }, [id, store, selectedLang, selectedCountry]);
 
   // Fetch reviews (up to 1000)
   useEffect(() => {
@@ -212,7 +212,7 @@ function ReviewsDetails() {
       
       // Only check cache if we're still mounted
       if (mounted) {
-        const cached = getCachedData(`/reviews/${id}/all`, params);
+        const cached = getCachedData(`/reviews/${store}/${id}/all`, params);
         if (cached) {
           setReviews(cached.data.reviews);
           setTotalReviews(cached.data.total);
@@ -223,7 +223,7 @@ function ReviewsDetails() {
 
       if (!mounted) return;
       try {
-        const response = await fetch(buildApiUrl(`/reviews/${id}/all`, params));
+        const response = await fetch(buildApiUrl(`/reviews/${store}/${id}`, params));
 
         if (!response.ok) {
           const errorData = await response.json();
@@ -231,10 +231,11 @@ function ReviewsDetails() {
         }
 
         const data = await response.json();
-        if (data && data.reviews) {
-          setReviews(data.reviews);
-          setTotalReviews(data.total);
-          setCachedData(`/reviews/${id}/all`, params, data);
+        console.log('Fetched data:', data);
+        if (data) {
+          setReviews(data);
+          setTotalReviews(data.length);
+          setCachedData(`/reviews/${store}/${id}/all`, params, data);
         } else {
           throw new Error('Invalid response format from server');
         }
@@ -247,12 +248,12 @@ function ReviewsDetails() {
     };
 
     fetchReviews();
-  }, [id, selectedLang, selectedCountry]);
+  }, [id, store, selectedLang, selectedCountry]);
 
   const handleDownloadReviews = async () => {
     try {
       const response = await fetch(
-        buildApiUrl(`/reviews/${id}/csv`, {
+        buildApiUrl(`/reviews/${store}/${id}/csv`, {
           lang: selectedLang,
           country: selectedCountry
         })
@@ -293,7 +294,7 @@ function ReviewsDetails() {
     // Update URL with new country and prevent scroll
     const params = new URLSearchParams(searchParams);
     params.set('country', country);
-    navigate(`/app/${id}/reviews?${params.toString()}`, { 
+    navigate(`/app/${store}/${id}/reviews?${params.toString()}`, { 
       preventScrollReset: true,
       replace: true // Replace instead of push to prevent scroll issues
     });
@@ -305,7 +306,7 @@ function ReviewsDetails() {
         <Typography color="error" gutterBottom>
           {error}
         </Typography>
-        <Button variant="contained" onClick={() => navigate(`/app/${id}`)}>
+        <Button variant="contained" onClick={() => navigate(`/app/${store}/${id}`)}>
           Return to App Details
         </Button>
       </Box>
@@ -320,7 +321,7 @@ function ReviewsDetails() {
           const params = new URLSearchParams();
           params.set('country', selectedCountry);
           params.set('lang', selectedLang);
-          navigate(`/app/${id}?${params.toString()}`, { 
+          navigate(`/app/${store}/${id}?${params.toString()}`, { 
             preventScrollReset: true,
             replace: true // Replace instead of push to prevent scroll issues
           });
@@ -448,14 +449,14 @@ function ReviewsDetails() {
                     <Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                         <Rating 
-                          value={review.score || 0}
+                          value={review.rating != null ? Number(review.rating) : review.score != null ? Number(review.score) : 0}
                           readOnly 
                           size="small" 
                           precision={0.5}
                           max={5}
                         />
                         <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                          {DateTime.fromISO(review.updated).setLocale('fr').toLocaleString(DateTime.DATE_FULL)}
+                          {DateTime.fromISO(review.date).toLocaleString(DateTime.DATE_FULL)}
                         </Typography>
                       </Box>
                       <Typography variant="subtitle2">{review.title}</Typography>

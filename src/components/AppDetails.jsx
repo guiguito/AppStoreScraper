@@ -357,7 +357,7 @@ function AppDetails({ country: initialCountry }) {
                                   setSelectedCountry(code);
                                   const searchParams = new URLSearchParams(window.location.search);
                                   searchParams.set('country', normalizeCountryCode(code));
-                                  navigate(`/app/${id}?${searchParams.toString()}`);
+                                  navigate(`/app/${store}/${id}?${searchParams.toString()}`);
                                 }}
                               />
                             </Grid>
@@ -396,7 +396,7 @@ function AppDetails({ country: initialCountry }) {
                                   setSelectedLang(language);
                                   const searchParams = new URLSearchParams(window.location.search);
                                   searchParams.set('lang', language);
-                                  navigate(`/app/${id}?${searchParams.toString()}`);
+                                  navigate(`/app/${store}/${id}?${searchParams.toString()}`);
                                 }}
                                 sx={{
                                   cursor: 'pointer',
@@ -501,7 +501,7 @@ function AppDetails({ country: initialCountry }) {
                                 bgcolor: 'action.hover',
                               },
                             }}
-                            onClick={() => navigate(`/app/${app.id}`)}
+                            onClick={() => navigate(`/app/${store}/${app.id}`)}
                           >
                             <CardContent sx={{ p: 1.5 }}>
                               <Box display="flex" alignItems="center">
@@ -586,7 +586,7 @@ function AppDetails({ country: initialCountry }) {
                     </Typography>
                     <Button
                       variant="contained"
-                      onClick={() => navigate(`/app/${id}/reviews?country=${selectedCountry}&lang=${selectedLang}`)}
+                      onClick={() => navigate(`/app/${store}/${id}/reviews?country=${selectedCountry}&lang=${selectedLang}`)}
                       size="small"
                     >
                       View Full Analysis
@@ -627,7 +627,7 @@ function AppDetails({ country: initialCountry }) {
                   <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
                     <Button
                       variant="outlined"
-                      onClick={() => navigate(`/app/${id}/reviews?country=${selectedCountry}&lang=${selectedLang}`)}
+                      onClick={() => navigate(`/app/${store}/${id}/reviews?country=${selectedCountry}&lang=${selectedLang}`)}
                     >
                       View All Reviews
                     </Button>
@@ -651,7 +651,7 @@ function AppDetails({ country: initialCountry }) {
                               bgcolor: 'action.hover',
                             },
                           }}
-                          onClick={() => navigate(`/app/${app.id}`)}
+                          onClick={() => navigate(`/app/${store}/${app.id}`)}
                         >
                           <CardContent sx={{ p: 2 }}>
                             <Box display="flex" alignItems="center">
