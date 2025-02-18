@@ -23,12 +23,21 @@ function DailyReviewsChart({ reviews }) {
     // Create a map to count reviews by date
     const reviewsByDate = reviews.reduce((acc, review) => {
       try {
-        // Try to parse the date from either updated or date field
-        const reviewDate = review.updated || review.date;
+        // Try to parse the date from either updated, date, or submitTime field (Play Store)
+        let reviewDate = review.updated || review.date;
+        
+        // Handle Play Store's submitTime (which is in milliseconds)
+        if (!reviewDate && review.submitTime) {
+          reviewDate = new Date(parseInt(review.submitTime)).toISOString();
+        }
+        
         if (!reviewDate) return acc;
 
         const date = new Date(reviewDate);
-        if (isNaN(date.getTime())) return acc; // Skip invalid dates
+        if (isNaN(date.getTime())) {
+          console.warn('Invalid date:', reviewDate);
+          return acc;
+        }
 
         const dateStr = date.toISOString().split('T')[0];
         acc[dateStr] = (acc[dateStr] || 0) + 1;

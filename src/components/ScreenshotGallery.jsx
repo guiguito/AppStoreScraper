@@ -98,6 +98,15 @@ function ScreenshotGallery({ screenshots }) {
                 src={screenshot}
                 alt={`Screenshot ${index + 1}`}
                 loading="lazy"
+                referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
+                onError={(e) => {
+                  // If image fails to load, try with a different referrer policy
+                  if (e.target.getAttribute('referrerPolicy') === 'no-referrer') {
+                    e.target.setAttribute('referrerPolicy', 'origin');
+                    e.target.src = screenshot;
+                  }
+                }}
               />
             </Box>
           ))}
@@ -152,6 +161,15 @@ function ScreenshotGallery({ screenshots }) {
               maxWidth: '100%',
               maxHeight: '100%',
               objectFit: 'contain',
+            }}
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
+            onError={(e) => {
+              // If image fails to load, try with a different referrer policy
+              if (e.target.getAttribute('referrerPolicy') === 'no-referrer') {
+                e.target.setAttribute('referrerPolicy', 'origin');
+                e.target.src = screenshots[currentIndex];
+              }
             }}
             onClick={(e) => e.stopPropagation()}
           />

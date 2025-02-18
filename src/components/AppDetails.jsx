@@ -212,6 +212,16 @@ function AppDetails({ country: initialCountry }) {
                         alt={details.title}
                         variant="rounded"
                         sx={{ width: 120, height: 120 }}
+                        imgProps={{
+                          referrerPolicy: 'no-referrer',
+                          crossOrigin: 'anonymous',
+                          onError: (e) => {
+                            if (e.target.getAttribute('referrerPolicy') === 'no-referrer') {
+                              e.target.setAttribute('referrerPolicy', 'origin');
+                              e.target.src = details.icon;
+                            }
+                          }
+                        }}
                       />
                     )}
                     <Box
@@ -516,6 +526,16 @@ function AppDetails({ country: initialCountry }) {
                                   alt={app.title}
                                   variant="rounded"
                                   sx={{ width: 40, height: 40, mr: 1.5 }}
+                                  imgProps={{
+                                    referrerPolicy: 'no-referrer',
+                                    crossOrigin: 'anonymous',
+                                    onError: (e) => {
+                                      if (e.target.getAttribute('referrerPolicy') === 'no-referrer') {
+                                        e.target.setAttribute('referrerPolicy', 'origin');
+                                        e.target.src = app.icon;
+                                      }
+                                    }
+                                  }}
                                 />
                                 <Box sx={{ minWidth: 0 }}>
                                   <Typography variant="subtitle2" noWrap>
@@ -615,15 +635,16 @@ function AppDetails({ country: initialCountry }) {
                                 </Typography>
                               </Box>
                             }
+                            secondaryTypographyProps={{ component: 'div' }}
                             secondary={
-                              <Box sx={{ mt: 0.5 }}>
-                                <Typography variant="caption" color="text.secondary" display="block">
+                              <React.Fragment>
+                                <Typography variant="caption" color="text.secondary" display="block" component="div">
                                   {review.userName} - Version {review.version} - {new Date(review.updated).toLocaleDateString()} {new Date(review.updated).toLocaleTimeString()}
                                 </Typography>
-                                <Typography variant="body2" sx={{ mt: 0.5 }}>
+                                <Typography variant="body2" sx={{ mt: 0.5 }} component="div">
                                   {review.text}
                                 </Typography>
-                              </Box>
+                              </React.Fragment>
                             }
                           />
                         </ListItem>
