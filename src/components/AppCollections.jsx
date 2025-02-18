@@ -164,8 +164,8 @@ function AppCollections({ country, selectedStore }) {
           </Box>
           <Box sx={{ flex: 1, overflow: 'hidden' }}>
             <Grid container spacing={1}>
-              {loading && [1, 2, 3, 4, 5].map(i => <React.Fragment key={i}>{renderSkeleton()}</React.Fragment>)}
-              {!loading && data && data.slice(0, 5).map((app, index) => renderAppCard(app, index))}
+              {loading && [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => <React.Fragment key={i}>{renderSkeleton()}</React.Fragment>)}
+              {!loading && data && data.slice(0, 10).map((app, index) => renderAppCard(app, index))}
             </Grid>
           </Box>
         </Box>
