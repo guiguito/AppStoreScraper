@@ -25,7 +25,9 @@ import {
   CircularProgress,
   Container,
 } from '@mui/material';
-import { Download, PhoneIphone, ArrowBack, Language, Public, Apple, Google } from '@mui/icons-material';
+import { Download, PhoneIphone, ArrowBack, Language, Public } from '@mui/icons-material';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faAppStore, faGooglePlay } from '@fortawesome/free-brands-svg-icons';
 import CollapsibleSection from './CollapsibleSection';
 
 function AppDetails({ country: initialCountry }) {
@@ -231,14 +233,32 @@ function AppDetails({ country: initialCountry }) {
                         right: -10,
                         bgcolor: 'background.paper',
                         borderRadius: '50%',
-                        padding: 0.5,
-                        boxShadow: 1
+                        padding: 1,
+                        boxShadow: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 32,
+                        height: 32
                       }}
                     >
                       {details.store === 'appstore' ? (
-                        <Apple sx={{ fontSize: 24, color: 'text.secondary' }} />
+                        <FontAwesomeIcon 
+                          icon={faAppStore} 
+                          style={{ 
+                            fontSize: 20,
+                            color: '#0066DC'
+                          }} 
+                        />
                       ) : (
-                        <Google sx={{ fontSize: 24, color: 'text.secondary' }} />
+                        <FontAwesomeIcon 
+                          icon={faGooglePlay} 
+                          style={{ 
+                            fontSize: 20,
+                            color: '#01875F',
+                            marginLeft: '4px' // Offset the triangle shape
+                          }} 
+                        />
                       )}
                     </Box>
                   </Box>

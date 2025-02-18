@@ -8,8 +8,8 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import AppleIcon from '@mui/icons-material/Apple';
-import GoogleIcon from '@mui/icons-material/Google';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faAppStore, faGooglePlay } from '@fortawesome/free-brands-svg-icons';
 import CountrySelector from './CountrySelector';
 import { useNavigate } from 'react-router-dom';
 import { buildApiUrl } from '../config';
@@ -174,9 +174,9 @@ function SearchBar({ country, onCountryChange }) {
                   color: 'text.disabled'
                 }}>
                   {option.store === 'appstore' ? (
-                    <AppleIcon sx={{ fontSize: 20 }} />
+                    <FontAwesomeIcon icon={faAppStore} style={{ fontSize: 20 }} />
                   ) : (
-                    <GoogleIcon sx={{ fontSize: 20 }} />
+                    <FontAwesomeIcon icon={faGooglePlay} style={{ fontSize: 20 }} />
                   )}
                 </Box>
               </Box>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { ToggleButtonGroup, ToggleButton } from '@mui/material';
-import AppleIcon from '@mui/icons-material/Apple';
-import AndroidIcon from '@mui/icons-material/Android';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faAppStore, faGooglePlay } from '@fortawesome/free-brands-svg-icons';
 
 function StoreSelector({ selectedStore, onStoreChange }) {
   return (
@@ -31,10 +31,10 @@ function StoreSelector({ selectedStore, onStoreChange }) {
       }}
     >
       <ToggleButton value="appstore" aria-label="App Store">
-        <AppleIcon sx={{ mr: 1 }} /> App Store
+        <FontAwesomeIcon icon={faAppStore} style={{ marginRight: '8px' }} /> App Store
       </ToggleButton>
       <ToggleButton value="playstore" aria-label="Play Store">
-        <AndroidIcon sx={{ mr: 1 }} /> Play Store
+        <FontAwesomeIcon icon={faGooglePlay} style={{ marginRight: '8px' }} /> Play Store
       </ToggleButton>
     </ToggleButtonGroup>
   );
