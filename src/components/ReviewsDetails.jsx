@@ -31,6 +31,8 @@ import { DateTime } from 'luxon';
 // Set Luxon's default locale to French
 DateTime.local().setLocale('fr');
 
+const fetchedReviews = {};
+
 function ReviewsDetails() {
   const { getCachedData, setCachedData } = useDataCache();
   const { id, store } = useParams();
@@ -201,27 +203,26 @@ function ReviewsDetails() {
 
   // Fetch reviews (up to 1000)
   useEffect(() => {
-    let mounted = true;
-    
     const fetchReviews = async () => {
+      setLoading(true);
+      setError(null);
+      
       const params = {
         lang: selectedLang,
         country: selectedCountry,
         limit: 550
       };
       
-      // Only check cache if we're still mounted
-      if (mounted) {
-        const cached = getCachedData(`/reviews/${store}/${id}/all`, params);
-        if (cached) {
-          setReviews(cached.data.reviews);
-          setTotalReviews(cached.data.total);
-          setLoading(false);
-          return;
-        }
+      // Check cache first
+      const cacheKey = `/reviews/${store}/${id}/all`;
+      const cached = getCachedData(cacheKey, params);
+      if (cached) {
+        setReviews(cached.data);
+        setTotalReviews(cached.data.length);
+        setLoading(false);
+        return;
       }
 
-      if (!mounted) return;
       try {
         const response = await fetch(buildApiUrl(`/reviews/${store}/${id}`, params));
 
@@ -235,7 +236,7 @@ function ReviewsDetails() {
         if (data) {
           setReviews(data);
           setTotalReviews(data.length);
-          setCachedData(`/reviews/${store}/${id}/all`, params, data);
+          setCachedData(cacheKey, params, data);
         } else {
           throw new Error('Invalid response format from server');
         }
@@ -248,7 +249,14 @@ function ReviewsDetails() {
     };
 
     fetchReviews();
-  }, [id, store, selectedLang, selectedCountry]);
+
+    // Cleanup function to handle unmounting
+    return () => {
+      setReviews([]);
+      setTotalReviews(0);
+      setError(null);
+    };
+  }, [id, store, selectedLang, selectedCountry, getCachedData, setCachedData]);
 
   const handleDownloadReviews = async () => {
     try {
@@ -446,26 +454,25 @@ function ReviewsDetails() {
                 {reviews.map((review, index) => (
                   <React.Fragment key={review.id || index}>
                     {index > 0 && <Divider sx={{ my: 2 }} />}
-                    <Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Box sx={{ px: 2, py: 1.5 }}>
+                      <Box display="flex" alignItems="center">
                         <Rating 
                           value={review.rating != null ? Number(review.rating) : review.score != null ? Number(review.score) : 0}
                           readOnly 
-                          size="small" 
-                          precision={0.5}
-                          max={5}
+                          size="small"
                         />
-                        <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                          {DateTime.fromISO(review.date).toLocaleString(DateTime.DATE_FULL)}
+                        <Typography variant="subtitle2" sx={{ ml: 1 }}>
+                          {review.title || ''}
                         </Typography>
                       </Box>
-                      <Typography variant="subtitle2">{review.title}</Typography>
-                      <Typography variant="body2" paragraph>
-                        {review.text || review.content}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Version: {review.version}
-                      </Typography>
+                      <Box sx={{ mt: 0.5 }}>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          {review.userName} - Version {review.version} - {(review.updated ? new Date(review.updated) : new Date(review.date)).toLocaleDateString()} {(review.updated ? new Date(review.updated) : new Date(review.date)).toLocaleTimeString()}
+                        </Typography>
+                        <Typography variant="body2" sx={{ mt: 0.5 }}>
+                          {review.text}
+                        </Typography>
+                      </Box>
                     </Box>
                   </React.Fragment>
                 ))}

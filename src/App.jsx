@@ -14,7 +14,15 @@ import CategoryChips from './components/CategoryChips';
 import { countries } from './components/CountrySelector';
 
 function HomePage({ country, onCountryChange }) {
-  const [selectedStore, setSelectedStore] = useState('appstore');
+  // Get the stored store selection from localStorage or default to appstore
+  const [selectedStore, setSelectedStore] = useState(() => {
+    return localStorage.getItem('selectedStore') || 'appstore';
+  });
+
+  // Update localStorage when store changes
+  useEffect(() => {
+    localStorage.setItem('selectedStore', selectedStore);
+  }, [selectedStore]);
   return (
     <Box sx={{ mb: 4 }}>
       <Box 

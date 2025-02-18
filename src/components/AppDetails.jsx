@@ -170,7 +170,10 @@ function AppDetails({ country: initialCountry }) {
         <Typography color="error" gutterBottom>
           {error}
         </Typography>
-        <Button variant="contained" onClick={() => navigate('/')}>
+        <Button variant="contained" onClick={() => {
+          localStorage.setItem('selectedStore', store);
+          navigate('/');
+        }}>
           Return to Search
         </Button>
       </Box>
@@ -187,7 +190,10 @@ function AppDetails({ country: initialCountry }) {
         <CardContent>
           <Button
             startIcon={<ArrowBack />}
-            onClick={() => navigate('/')}
+            onClick={() => {
+              localStorage.setItem('selectedStore', store);
+              navigate('/');
+            }}
             sx={{ mb: 2 }}
           >
             Back to Search
