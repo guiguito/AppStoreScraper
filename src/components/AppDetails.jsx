@@ -342,50 +342,52 @@ function AppDetails({ country: initialCountry }) {
                   <RatingsHistogram histogram={details?.ratings?.histogram || {}} />
                 </Paper>
 
-                {/* Countries - Collapsible */}
-                <CollapsibleSection
-                  title={`${availableCountries.length} available countries (${availableCountries.find(c => c.code === selectedCountry)?.name || 'Unknown'})`}
-                  icon={<Public />}
-                  defaultExpanded={false}
-                  titleVariant="subtitle1"
-                >
-                  <Paper variant="outlined" sx={{ p: 2 }}>
-                    {loadingCountries ? (
-                      <Box display="flex" justifyContent="center" p={2}>
-                        <CenteredLoader size="small" />
-                      </Box>
-                    ) : (
-                      <Grid container spacing={1}>
-                        {availableCountries.map(({ code, name }) => {
-                          const FlagComponent = flags[code];
-                          return (
-                            <Grid item key={code}>
-                              <Chip
-                                icon={FlagComponent ? <FlagComponent style={{ width: '16px', marginLeft: '8px' }} /> : null}
-                                label={name}
-                                variant={code === selectedCountry ? "filled" : "outlined"}
-                                size="small"
-                                onClick={() => {
-                                  if (!isValidCountryCode(code)) {
-                                    console.warn(`Invalid country code: ${code}, ignoring click`);
-                                    return;
-                                  }
-                                  setSelectedCountry(code);
-                                  const searchParams = new URLSearchParams(window.location.search);
-                                  searchParams.set('country', normalizeCountryCode(code));
-                                  navigate(`/app/${store}/${id}?${searchParams.toString()}`);
-                                }}
-                              />
-                            </Grid>
-                          );
-                        })}
-                      </Grid>
-                    )}
-                  </Paper>
-                </CollapsibleSection>
+                {/* Countries - Collapsible (iOS only) */}
+                {details.store === 'appstore' && (
+                  <CollapsibleSection
+                    title={`${availableCountries.length} available countries (${availableCountries.find(c => c.code === selectedCountry)?.name || 'Unknown'})`}
+                    icon={<Public />}
+                    defaultExpanded={false}
+                    titleVariant="subtitle1"
+                  >
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      {loadingCountries ? (
+                        <Box display="flex" justifyContent="center" p={2}>
+                          <CenteredLoader size="small" />
+                        </Box>
+                      ) : (
+                        <Grid container spacing={1}>
+                          {availableCountries.map(({ code, name }) => {
+                            const FlagComponent = flags[code];
+                            return (
+                              <Grid item key={code}>
+                                <Chip
+                                  icon={FlagComponent ? <FlagComponent style={{ width: '16px', marginLeft: '8px' }} /> : null}
+                                  label={name}
+                                  variant={code === selectedCountry ? "filled" : "outlined"}
+                                  size="small"
+                                  onClick={() => {
+                                    if (!isValidCountryCode(code)) {
+                                      console.warn(`Invalid country code: ${code}, ignoring click`);
+                                      return;
+                                    }
+                                    setSelectedCountry(code);
+                                    const searchParams = new URLSearchParams(window.location.search);
+                                    searchParams.set('country', normalizeCountryCode(code));
+                                    navigate(`/app/${store}/${id}?${searchParams.toString()}`);
+                                  }}
+                                />
+                              </Grid>
+                            );
+                          })}
+                        </Grid>
+                      )}
+                    </Paper>
+                  </CollapsibleSection>
+                )}
 
-                {/* Languages - Collapsible */}
-                {details.languages && details.languages.length > 0 && (
+                {/* Languages - Collapsible (iOS only) */}
+                {details.store === 'appstore' && details.languages && details.languages.length > 0 && (
                   <CollapsibleSection 
                     title={`Languages (${new Intl.DisplayNames([details.currentLanguage || 'en'], { type: 'language' }).of(details.currentLanguage || 'en')})`} 
                     defaultExpanded={false}

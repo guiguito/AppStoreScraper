@@ -361,33 +361,36 @@ function ReviewsDetails() {
               </Button>
             </Paper>
 
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Available Countries
-              </Typography>
-              <List dense>
-                {availableCountries.map((country) => {
-                  const FlagIcon = flags[country.code];
-                  return (
-                    <ListItem
-                      key={country.code}
-                      button
-                      selected={country.code === selectedCountry}
-                      onClick={() => handleCountryChange(country.code)}
-                    >
-                      <ListItemIcon sx={{ minWidth: 36 }}>
-                        {FlagIcon ? (
-                          <FlagIcon title={country.name} width={24} />
-                        ) : (
-                          <Language fontSize="small" />
-                        )}
-                      </ListItemIcon>
-                      <ListItemText primary={country.name} secondary={country.code} />
-                    </ListItem>
-                  );
-                })}
-              </List>
-            </Paper>
+            {/* Available Countries - iOS only */}
+            {store === 'appstore' && (
+              <Paper variant="outlined" sx={{ p: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  Available Countries
+                </Typography>
+                <List dense>
+                  {availableCountries.map((country) => {
+                    const FlagIcon = flags[country.code];
+                    return (
+                      <ListItem
+                        key={country.code}
+                        button
+                        selected={country.code === selectedCountry}
+                        onClick={() => handleCountryChange(country.code)}
+                      >
+                        <ListItemIcon sx={{ minWidth: 36 }}>
+                          {FlagIcon ? (
+                            <FlagIcon title={country.name} width={24} />
+                          ) : (
+                            <Language fontSize="small" />
+                          )}
+                        </ListItemIcon>
+                        <ListItemText primary={country.name} secondary={country.code} />
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              </Paper>
+            )}
           </Box>
         </Grid>
 
