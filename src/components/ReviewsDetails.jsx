@@ -124,7 +124,7 @@ function ReviewsDetails() {
         if (value) url.searchParams.append(key, value);
       });
 
-      console.log('Fetching sentiment analysis with params:', params);
+
 
       // Create a cache key that includes the date range and store
       const cacheKey = `/reviews/${store}/${id}/sentiment/${startDate?.toISODate()}_${endDate?.toISODate()}`;
@@ -149,7 +149,7 @@ function ReviewsDetails() {
         // Cache the parsed data with date range in key
         setCachedData(cacheKey, params, parsedData);
       } catch (error) {
-        console.error('Error fetching sentiment:', error);
+
         setSentimentError(error.message);
       } finally {
         setLoadingSentiment(false);
@@ -193,7 +193,7 @@ function ReviewsDetails() {
         setAvailableCountries(data.availableCountries || []);
         setCachedData(`/app/${id}`, params, data);
       } catch (error) {
-        console.error('Error fetching app details:', error);
+
         setError(error.message);
       }
     };
