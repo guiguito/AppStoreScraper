@@ -264,6 +264,71 @@ const errorHandler = (
   return res.status(500).json({ error: 'Internal server error' });
 };
 
+// Helper function to fetch reviews for both appstore and playstore endpoints
+async function fetchReviews(id: string, store: string, lang: string, country: string, limit: number): Promise<any[]> {
+  if (store === 'appstore') {
+    let reviews: any[] = [];
+    let page = 0;
+    let hasMore = true;
+    while (hasMore && reviews.length < limit) {
+      try {
+        const results = await client.reviews({
+          id: id.toString(),
+          country: getCountryCode(country),
+          language: lang,
+          page,
+          sort: Sort.RECENT,
+        });
+        if (results && results.length > 0) {
+          reviews = reviews.concat(results.map(review => ({
+            ...review,
+            store: 'appstore',
+            rating: review.score, // Map App Store's 'score' to 'rating'
+          })));
+          page++;
+        } else {
+          hasMore = false;
+        }
+      } catch (error) {
+        logger.error(`Error fetching App Store reviews page ${page}:`, error);
+        break;
+      }
+    }
+    return reviews;
+  } else if (store === 'playstore') {
+    try {
+      logger.info(`Fetching Play Store reviews for app ${id} with limit ${limit}`);
+      const REVIEWS_PER_PAGE = 100;
+      const MAX_PLAY_STORE_BATCHES = 10;
+      const batchSize = Math.min(limit, REVIEWS_PER_PAGE);
+      const numBatches = Math.min(Math.ceil(limit / batchSize), MAX_PLAY_STORE_BATCHES);
+      logger.info(`Will fetch ${numBatches} batches with ${batchSize} reviews per batch`);
+      const batchPromises = [];
+      for (let batch = 0; batch < numBatches; batch++) {
+        batchPromises.push(
+          gplay.reviews({
+            appId: id,
+            lang,
+            country: country.toLowerCase(),
+            num: batchSize,
+            sort: gplay.sort.NEWEST,
+            paginate: true,
+            nextPaginationToken: batch > 0 ? batch.toString() : undefined,
+          })
+        );
+      }
+      const batches = await Promise.all(batchPromises);
+      const reviews = batches.reduce((acc, batchReviews) => acc.concat(batchReviews), []);
+      return reviews;
+    } catch (error) {
+      logger.error(`Error fetching Play Store reviews for app ${id}:`, error);
+      return [];
+    }
+  } else {
+    return [];
+  }
+}
+
 // Routes
 app.get('/category-apps/:store', validateCommonParams, async (req: ValidatedRequest, res: express.Response) => {
   try {
@@ -737,82 +802,10 @@ app.get('/reviews/:store/:id', validateCommonParams, async (
     const { lang, country } = req.validatedParams!;
     const limit = parseInt(req.query.limit?.toString() || '50');
 
-    let allReviews: Review[] = [];
-
-    if (store === 'appstore') {
-      let page = 0;
-      let hasMore = true;
-
-      // Fetch reviews until we get the desired limit
-      while (hasMore && allReviews.length < limit) {
-        try {
-          const results = await client.reviews({
-            id: id.toString(),
-            country: getCountryCode(country),
-            language: lang,
-            page,
-            sort: Sort.RECENT,
-          });
-
-          if (results && results.length > 0) {
-            allReviews = [...allReviews, ...results.map(review => ({
-              ...review,
-              store: 'appstore',
-              rating: review.score, // Map App Store's 'score' to 'rating'
-            }))];
-            page++;
-          } else {
-            hasMore = false;
-          }
-        } catch (error) {
-          logger.error(`Error fetching App Store reviews page ${page}:`, error);
-          break;
-        }
-      }
-    } else if (store === 'playstore') {
-      const { id } = req.params;
-      const { lang, country } = req.validatedParams!;
-      const limit = parseInt(req.query.limit?.toString() || '50');
-      
-      try {
-        const results = await gplay.reviews({
-          appId: id,
-          lang: lang,
-          country: country.toLowerCase(),
-          num: limit,
-          sort: gplay.sort.NEWEST
-        });
-
-        if (results && results.data) {
-          allReviews = results.data.map((review: GooglePlayReview) => ({
-            id: review.id,
-            userName: review.userName,
-            title: '',  // Google Play reviews don't have titles
-            text: review.text || '',
-            rating: review.score,
-            score: review.score,
-            version: review.version || '',
-            updated: review.date,
-            store: 'playstore',
-            userUrl: '',  // Play Store doesn't provide these URLs
-            url: ''
-          }));
-        }
-      } catch (error) {
-        logger.error('Error fetching Google Play Store reviews:', error);
-        throw error;
-      }
-    } else {
-      return res.status(400).json({ error: 'Invalid store parameter. Must be either "appstore" or "playstore"' });
-    }
-
-    // Trim to limit if we got more reviews than requested
-    if (allReviews.length > limit) {
-      allReviews = allReviews.slice(0, limit);
-    }
-
-    return res.json(allReviews);
+    const reviews = await fetchReviews(id, store, lang, country, limit);
+    return res.json(reviews);
   } catch (error) {
+    logger.error('Error in reviews endpoint:', error);
     return next(error);
   }
 });
@@ -915,7 +908,7 @@ app.get('/reviews/:store/:id/sentiment', validateCommonParams, async (
       try {
         const results = await gplay.reviews({
           appId: id,
-          lang: lang,
+          lang,
           country: country.toLowerCase(),
           sort: gplay.sort.NEWEST,
           num: MAX_REVIEWS // Request maximum number of reviews
@@ -1139,17 +1132,49 @@ app.get('/reviews/:store/:id/csv', validateCommonParams, async (
             sort: Sort.RECENT,
           });
         } else {
-          // For Play Store, fetch reviews with pagination
-          results = await gplay.reviews({
-            appId: id,
-            country: country.toLowerCase(),
-            lang: lang,
-            sort: gplay.sort.NEWEST,
-            num: REVIEWS_PER_PAGE,
-          });
-          // Extract the reviews from the response
-          results = results.data;
-          // Play Store has no more pages after this
+          logger.info(`Fetching Play Store reviews in batches for app ${id}`);
+          const batchPromises = [];
+          
+          // Create multiple batch requests
+          for (let batch = 0; batch < MAX_PLAY_STORE_BATCHES; batch++) {
+            logger.info(`Preparing batch ${batch + 1} of ${MAX_PLAY_STORE_BATCHES}`);
+            batchPromises.push(
+              gplay.reviews({
+                appId: id,
+                country: country.toLowerCase(),
+                lang: lang,
+                sort: gplay.sort.NEWEST,
+                num: REVIEWS_PER_PAGE,
+                paginate: true,
+                nextPaginationToken: batch > 0 ? batch.toString() : undefined
+              })
+            );
+          }
+
+          logger.info('Waiting for all review batches to complete...');
+          const batchResults = await Promise.all(batchPromises);
+          logger.info('Processing review batches...');
+          
+          // Combine all review data
+          results = batchResults.reduce((allReviews: GooglePlayReview[], batch: { data?: GooglePlayReview[] }, index: number) => {
+            if (batch && batch.data) {
+              logger.info(`Batch ${index + 1}: Processing ${batch.data.length} reviews`);
+              return [...allReviews, ...batch.data];
+            }
+            logger.warn(`Batch ${index + 1}: No reviews found`);
+            return allReviews;
+          }, []);
+
+          const initialCount = results.length;
+          // Remove any duplicate reviews based on review ID
+          results = Array.from(new Map(results.map((review: GooglePlayReview) => [review.id, review])).values());
+          logger.info(`Removed ${initialCount - results.length} duplicate reviews`);
+          
+          // Sort reviews by date (newest first)
+          results = (results as GooglePlayReview[]).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          logger.info(`Final result: ${results.length} unique reviews sorted by date`);
+          
+          // Play Store has no more pages after these batches
           hasMore = false;
         }
 
@@ -1333,6 +1358,10 @@ interface SentimentAnalysisResponse {
     KeyPatterns: string[];
   };
 }
+
+// Review fetching configuration
+const REVIEWS_PER_PAGE = 150; // Increased for Play Store
+const MAX_PLAY_STORE_BATCHES = 3; // Number of batches to fetch for Play Store
 
 const MISTRAL_API_KEY = 'bR19XOC1oWhJ0NtW9GxQlUKoCh9blDeg';
 
