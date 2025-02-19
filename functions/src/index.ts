@@ -318,7 +318,22 @@ async function fetchReviews(id: string, store: string, lang: string, country: st
         );
       }
       const batches = await Promise.all(batchPromises);
-      const reviews = batches.reduce((acc, batchReviews) => acc.concat(batchReviews), []);
+      const reviews = batches.reduce((acc: UnifiedReview[], batchResult: { data: any[] }) => {
+        const transformedReviews = batchResult.data.map((review: any): UnifiedReview => ({
+          id: review.id,
+          userName: review.userName,
+          title: '',  // Google Play reviews don't have titles
+          text: review.text,
+          rating: review.score,
+          score: review.score,
+          version: review.version || '',
+          updated: review.date,
+          store: 'playstore',
+          userUrl: review.url || '',  // Use review URL if available
+          url: review.url || '',  // Use review URL if available
+        }));
+        return acc.concat(transformedReviews);
+      }, []);
       return reviews;
     } catch (error) {
       logger.error(`Error fetching Play Store reviews for app ${id}:`, error);
@@ -887,7 +902,7 @@ app.get('/reviews/:store/:id/sentiment', validateCommonParams, async (
                 updated: review.updated,
                 store: 'appstore',
                 userUrl: review.userUrl,
-                url: review.url
+                url: review.url,
               });
               
               // Stop if we've reached the maximum number of reviews
@@ -911,7 +926,7 @@ app.get('/reviews/:store/:id/sentiment', validateCommonParams, async (
           lang,
           country: country.toLowerCase(),
           sort: gplay.sort.NEWEST,
-          num: MAX_REVIEWS // Request maximum number of reviews
+          num: MAX_REVIEWS, // Request maximum number of reviews
         });
 
         if (results && results.data) {
@@ -933,7 +948,7 @@ app.get('/reviews/:store/:id/sentiment', validateCommonParams, async (
                 store: 'playstore',
                 version: review.version || '',
                 userUrl: '',
-                url: ''
+                url: '',
               });
               
               // Stop if we've reached the maximum number of reviews
@@ -1146,7 +1161,7 @@ app.get('/reviews/:store/:id/csv', validateCommonParams, async (
                 sort: gplay.sort.NEWEST,
                 num: REVIEWS_PER_PAGE,
                 paginate: true,
-                nextPaginationToken: batch > 0 ? batch.toString() : undefined
+                nextPaginationToken: batch > 0 ? batch.toString() : undefined,
               })
             );
           }
@@ -1156,7 +1171,8 @@ app.get('/reviews/:store/:id/csv', validateCommonParams, async (
           logger.info('Processing review batches...');
           
           // Combine all review data
-          results = batchResults.reduce((allReviews: GooglePlayReview[], batch: { data?: GooglePlayReview[] }, index: number) => {
+          results = batchResults.reduce((allReviews: GooglePlayReview[],
+            batch: { data?: GooglePlayReview[] }, index: number) => {
             if (batch && batch.data) {
               logger.info(`Batch ${index + 1}: Processing ${batch.data.length} reviews`);
               return [...allReviews, ...batch.data];
@@ -1171,7 +1187,8 @@ app.get('/reviews/:store/:id/csv', validateCommonParams, async (
           logger.info(`Removed ${initialCount - results.length} duplicate reviews`);
           
           // Sort reviews by date (newest first)
-          results = (results as GooglePlayReview[]).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          results = (results as GooglePlayReview[]).sort((a, b) =>
+            new Date(b.date).getTime() - new Date(a.date).getTime());
           logger.info(`Final result: ${results.length} unique reviews sorted by date`);
           
           // Play Store has no more pages after these batches
@@ -1360,7 +1377,6 @@ interface SentimentAnalysisResponse {
 }
 
 // Review fetching configuration
-const REVIEWS_PER_PAGE = 150; // Increased for Play Store
 const MAX_PLAY_STORE_BATCHES = 3; // Number of batches to fetch for Play Store
 
 const MISTRAL_API_KEY = 'bR19XOC1oWhJ0NtW9GxQlUKoCh9blDeg';
