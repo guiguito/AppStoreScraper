@@ -6,7 +6,7 @@ import gplay from 'google-play-scraper';
 import type { collection as PlayStoreCollection, category as PlayStoreCategory } from 'google-play-scraper';
 import * as logger from 'firebase-functions/logger';
 import { unifyAppStoreResults, unifyReviews } from '../utils/utils.js';
-import { getCountryCode } from '../utils/countries.js';
+import { getCountryCode, TOP_30_COUNTRIES } from '../utils/countries.js';
 import { appStoreClient } from '../index.js';
 import { UnifiedReview } from '../utils/types.js';
 import { STORES } from '../utils/stores.js';
@@ -117,16 +117,9 @@ export const searchApps = async (term: string, country: string, lang: string) =>
 export const fetchSimilarApps = async (id: string, store: string, country: string, lang: string) => {
   try {
     if (store === STORES.APP_STORE) {
-      // Get app details first to get the genre
-      const app = await appStoreClient.app({ id, country: getCountryCode(country), language: lang });
-      if (!app) {
-        throw new Error('App not found');
-      }
-
-      // Get similar apps from the same genre
-      // Since we can't get the genre directly, we'll just get top free apps
-      const similarApps = await appStoreClient.list({
-        collection: Collection.TOP_FREE_IOS,
+      // Get similar apps using the app-store-client similar endpoint
+      const similarApps = await appStoreClient.similarApps({
+        id,
         country: getCountryCode(country),
         language: lang,
       });
@@ -186,71 +179,85 @@ function calculateEstimatedDistribution(total: number, average: number): number[
   return distribution;
 }
 
+// Helper function to check app availability in different countries
+async function fetchAppStoreCountries(id: string): Promise<Array<{ code: string; name: string }>> {
+  const available: Array<{ code: string; name: string }> = [];
+  
+  await Promise.all(Object.entries(TOP_30_COUNTRIES).map(async ([code, name]) => {
+    try {
+      const response = await fetch(`https://itunes.apple.com/lookup?id=${id}&country=${code}`);
+      const data = await response.json();
+      if (data.resultCount > 0) {
+        available.push({ code, name });
+      }
+    } catch (error) {
+      logger.error(`Error checking availability for ${name}:`, error);
+    }
+  }));
+
+  return available;
+}
+
 export const fetchAppDetails = async (id: string, store: string, country: string, lang: string) => {
   try {
     if (store === STORES.APP_STORE) {
-      // Fetch app details and ratings
       logger.info('Fetching App Store details for:', { id, country: getCountryCode(country), language: lang });
       
-      const appResponse = await appStoreClient.app({ id, country: getCountryCode(country), language: lang });
-      
-      // Debug log the raw response
-      logger.info('Raw App Store response:', JSON.stringify(appResponse));
+      // Fetch app details, ratings, and privacy data in parallel
+      const [appResponse, ratingsResponse, privacyResponse] = await Promise.all([
+        appStoreClient.app({ id, country: getCountryCode(country), language: lang }),
+        appStoreClient.ratings({ id, country: getCountryCode(country), language: lang })
+          .catch(error => {
+            logger.warn('Failed to fetch ratings:', error);
+            return null;
+          }),
+        appStoreClient.privacy({ id, country: getCountryCode(country), language: lang })
+          .catch(error => {
+            logger.warn('Failed to fetch privacy data:', error);
+            return null;
+          }),
+      ]);
       
       // Process ratings data
-      const appData = appResponse as any;
-      
-      // Try different paths where ratings might be found
-      const possiblePaths = [
-        appData?.attributes,
-        appData?.data?.attributes,
-        appData?.results?.[0],
-        appData,
-      ];
-      
-      let ratingData = null;
-      for (const path of possiblePaths) {
-        if (path?.userRating || path?.averageUserRating) {
-          ratingData = path;
-          break;
+      const ratings = {
+        total: appResponse?.reviews || 0,
+        average: appResponse?.score || 0,
+        histogram: {} as Record<string, { count: number; percentage: string }>,
+      };
+
+      // Process histogram data if available
+      if (ratingsResponse?.histogram) {
+        for (let i = 1; i <= 5; i++) {
+          const count = ratingsResponse.histogram[i] || 0;
+          ratings.histogram[i] = {
+            count,
+            percentage: ratings.total > 0 ? ((count / ratings.total) * 100).toFixed(1) + '%' : '0.0%',
+          };
+        }
+      } else {
+        // Fallback to estimated distribution if no histogram data
+        const estimatedDistribution = calculateEstimatedDistribution(ratings.total, ratings.average);
+        for (let i = 1; i <= 5; i++) {
+          const count = estimatedDistribution[i - 1];
+          ratings.histogram[i] = {
+            count,
+            percentage: ratings.total > 0 ? ((count / ratings.total) * 100).toFixed(1) + '%' : '0.0%',
+          };
         }
       }
-      
-      logger.info('Found rating data at:', ratingData);
-      
-      // Extract ratings from the response
-      const totalRatings = ratingData?.userRatingCount || ratingData?.ratingCount || 0;
-      const average = ratingData?.averageUserRating || ratingData?.averageRating || 0;
-      
-      // Since we don't have distribution data, we'll estimate it based on the average
-      // This is not ideal but better than showing all zeros
-      const estimatedDistribution = calculateEstimatedDistribution(totalRatings, average);
-      
-      // Convert distribution to our standard format
-      const histogramWithPercentages = {} as Record<string, { count: number; percentage: string }>;
-      
-      // App Store ratings are 1-5 stars
-      for (let i = 1; i <= 5; i++) {
-        const count = estimatedDistribution[i - 1];
-        histogramWithPercentages[i] = {
-          count,
-          percentage: totalRatings > 0 ? ((count / totalRatings) * 100).toFixed(1) + '%' : '0.0%',
-        };
-      }
 
-      const ratings = {
-        total: totalRatings,
-        average,
-        histogram: histogramWithPercentages,
-      };
+      // Fetch available countries
+      const availableCountries = await fetchAppStoreCountries(id);
 
-      // Create a unified app object with ratings
-      const appWithRatings = {
+      // Create a unified app object with all data
+      const appWithMetadata = {
         ...appResponse,
         ratings,
+        privacyData: privacyResponse || {},
+        availableCountries,
       };
       
-      return unifyAppStoreResults([appWithRatings], 'appstore')[0];
+      return unifyAppStoreResults([appWithMetadata], 'appstore')[0];
     } else if (store === STORES.PLAY_STORE) {
       const app = await gplay.app({
         appId: id,
@@ -337,7 +344,6 @@ export const fetchCollectionApps = async (type: string, store: string,
 
       if (type === 'category' && developerId) {
         const apps = await appStoreClient.list({
-          collection: Collection.TOP_FREE_IOS,
           country: getCountryCode(country),
           language: lang,
           category: parseInt(developerId),

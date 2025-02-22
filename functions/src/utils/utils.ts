@@ -13,7 +13,6 @@ export const unifyAppStoreResults = (apps: any[], store: 'appstore' | 'playstore
         return null;
       }
 
-
       // Extract URL - try different possible locations
       let url = app.url;
       if (!url && app.href) url = app.href;
@@ -28,6 +27,7 @@ export const unifyAppStoreResults = (apps: any[], store: 'appstore' | 'playstore
       const description = store === 'appstore' ? 
         (app.description || app.attributes?.description) : 
         (app.summary || app.description || '');
+
       // Extract ratings data
       const ratings = app.ratings || {
         total: 0,
@@ -45,18 +45,35 @@ export const unifyAppStoreResults = (apps: any[], store: 'appstore' | 'playstore
         });
         return null;
       }
+
+      // Extract app metadata
       const price = app.price || app.attributes?.price || 0;
       const free = price === 0;
       const currency = app.currency || app.attributes?.currency || 'USD';
       const version = app.version || app.attributes?.version;
       const released = app.released || app.attributes?.releaseDate;
       const updated = app.updated || app.attributes?.currentVersionReleaseDate;
+      const releaseNotes = app.releaseNotes || app.attributes?.releaseNotes;
       const size = app.size || app.attributes?.fileSizeBytes;
       const developerId = app.developerId || app.attributes?.artistId;
       const contentRating = app.contentRating || app.attributes?.contentAdvisoryRating;
       const screenshots = app.screenshots || app.attributes?.screenshotUrls || [];
+      const ipadScreenshots = app.ipadScreenshots || app.attributes?.ipadScreenshotUrls || [];
       const genre = app.genre || app.attributes?.primaryGenreName;
       const genreId = app.genreId || app.attributes?.primaryGenreId;
+
+      // Extract available countries
+      const availableCountries = store === 'appstore' ? (app.availableCountries || []) : [];
+
+      // Extract supported languages
+      const languages = store === 'appstore' ?
+        (app.languages || []) : 
+        (app.supportedLanguages || []);
+
+      // Extract supported devices
+      const supportedDevices = store === 'appstore' ?
+        (app.supportedDevices || []) :
+        [];
 
       return {
         id,
@@ -74,12 +91,18 @@ export const unifyAppStoreResults = (apps: any[], store: 'appstore' | 'playstore
         version,
         released,
         updated,
+        releaseNotes,
         size,
         contentRating,
         screenshots,
+        ipadScreenshots,
         genre,
         genreId,
         store,
+        ...(store === 'appstore' ? (app.privacyData || {}) : {}),
+        availableCountries,
+        languages,
+        supportedDevices,
       };
     } catch (error) {
       console.error(`Error processing app at index ${index}:`, error);

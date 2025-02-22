@@ -140,6 +140,22 @@ export interface UnifiedAppResult {
   genre?: string;
   genreId?: string | number;
   store: 'appstore' | 'playstore';
+  // Privacy data from App Store
+  privacyData?: {
+    dataCategories?: Array<{
+      category: string;
+      purposes: string[];
+      data: string[];
+    }>;
+    privacyTypes?: string[];
+    privacyDetails?: any;
+  };
+  // Available countries and languages
+  availableCountries?: Array<{
+    code: string;
+    name: string;
+  }>;
+  supportedLanguages?: string[];
 }
 
 export interface App {
