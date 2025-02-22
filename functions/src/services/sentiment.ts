@@ -41,29 +41,88 @@ export const analyzeSentiment = async (
     // Prepare reviews for analysis
     const reviewTexts = filteredReviews.map(review => review.text).join('\\n');
 
+    const prompt = `You are a Mobile Product Manager conducting a comprehensive sentiment analysis on the reviews below.
+    Your task is to: Categorize with your own analysis (no external code and library)
+    sentiment into three distinct groups:Positive, Negative, and Neutral based on the text reviews.
+    Count the number of reviews falling into each sentiment category and present the results
+    in a structured format. Identify the top 5 recurring issues from negative and neutral reviews.
+    Summarize each issue and provide the number of occurrences.
+    Provide insights on the overall sentiment distribution and any notable patterns found in the dataset.
+    Please provide your answers in english.
+    Reviews to analyze: ${reviewTexts}`;
+
     // Call Mistral API for sentiment analysis
     const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
         'Authorization': `Bearer ${MISTRAL_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'mistral-tiny',
+        model: 'mistral-large-latest',
         messages: [
           {
             role: 'system',
-            content: 'You are a sentiment analysis expert. Analyze the following app reviews and provide ' +
-              'sentiment distribution, top issues, and insights.',
+            content: 'You will analyze app store reviews and provide sentiment analysis.',
           },
           {
             role: 'user',
-            content: `Please analyze these app reviews and provide a structured response with sentiment
-              distribution (positive/neutral/negative percentages), top issues mentioned (with counts),
-               and key insights:\\n\\n${reviewTexts}`,
+            content: prompt,
           },
         ],
-        temperature: 0.3,
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            schema: {
+              title: 'SentimentAnalysis',
+              type: 'object',
+              properties: {
+                SentimentDistribution: {
+                  title: 'Sentiment Distribution',
+                  type: 'object',
+                  properties: {
+                    Positive: { title: 'Positive Reviews', type: 'integer', minimum: 0 },
+                    Neutral: { title: 'Neutral Reviews', type: 'integer', minimum: 0 },
+                    Negative: { title: 'Negative Reviews', type: 'integer', minimum: 0 },
+                  },
+                  required: ['Positive', 'Neutral', 'Negative'],
+                  additionalProperties: false,
+                },
+                TopIssues: {
+                  title: 'Top Issues',
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      Issue: { title: 'Issue', type: 'string' },
+                      Mentions: { title: 'Mentions Count', type: 'integer', minimum: 1 },
+                      Description: { title: 'Issue Description', type: 'string' },
+                    },
+                    required: ['Issue', 'Mentions', 'Description'],
+                    additionalProperties: false,
+                  },
+                },
+                Insights: {
+                  title: 'Insights',
+                  type: 'object',
+                  properties: {
+                    OverallSentiment: { title: 'Overall Sentiment Summary', type: 'string' },
+                    KeyPatterns: { title: 'Key Patterns', type: 'array', items: { type: 'string' } },
+                  },
+                  required: ['OverallSentiment', 'KeyPatterns'],
+                  additionalProperties: false,
+                },
+              },
+              required: ['SentimentDistribution', 'TopIssues', 'Insights'],
+              additionalProperties: false,
+            },
+            name: 'sentiment_analysis',
+            strict: true,
+          },
+        },
+        max_tokens: 1024,
+        temperature: 0,
       }),
     });
 

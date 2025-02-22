@@ -232,7 +232,6 @@ function ReviewsDetails() {
         }
 
         const data = await response.json();
-        console.log('Fetched data:', data);
         if (data) {
           setReviews(data);
           setTotalReviews(data.length);
