@@ -285,7 +285,7 @@ function AppDetails({ country: initialCountry }) {
                     align="center" 
                     gutterBottom
                     component="a"
-                    href={details.developerUrl}
+                    href={details.developerWebsite || details.developerUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     sx={{ 

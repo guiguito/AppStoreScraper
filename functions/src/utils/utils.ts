@@ -26,7 +26,7 @@ export const unifyAppStoreResults = (apps: any[], store: 'appstore' | 'playstore
       const developer = app.developer || app.attributes?.artistName || app.artist;
       const description = store === 'appstore' ? 
         (app.description || app.attributes?.description) : 
-        (app.summary || app.description || '');
+        (app.description || app.descriptionHTML || '');
 
       // Extract ratings data
       const ratings = app.ratings || {
@@ -55,12 +55,41 @@ export const unifyAppStoreResults = (apps: any[], store: 'appstore' | 'playstore
       const updated = app.updated || app.attributes?.currentVersionReleaseDate;
       const releaseNotes = app.releaseNotes || app.attributes?.releaseNotes;
       const size = app.size || app.attributes?.fileSizeBytes;
+      // Extract OS version requirements
+      const requiredOsVersion = store === 'appstore' ? 
+        (app.requiredOsVersion || app.attributes?.minimumOsVersion) : undefined;
+      const androidVersion = store === 'playstore' ? 
+        (app.androidVersion || app.minimumAndroidVersion) : undefined;
       const developerId = app.developerId || app.attributes?.artistId;
+      const developerUrl = store === 'appstore' ?
+        (app.developerUrl || app.attributes?.artistViewUrl) :
+        (app.developerUrl || app.developerPageUrl || '');
+      const developerWebsite = store === 'appstore' ?
+        (app.developerWebsite || app.attributes?.sellerUrl) :
+        (app.developerWebsite || '');
       const contentRating = app.contentRating || app.attributes?.contentAdvisoryRating;
       const screenshots = app.screenshots || app.attributes?.screenshotUrls || [];
       const ipadScreenshots = app.ipadScreenshots || app.attributes?.ipadScreenshotUrls || [];
-      const genre = app.genre || app.attributes?.primaryGenreName;
-      const genreId = app.genreId || app.attributes?.primaryGenreId;
+      // Extract genre information
+      const primaryGenre = app.genre || app.attributes?.primaryGenreName;
+      const primaryGenreId = app.genreId || app.attributes?.primaryGenreId;
+      let genres = store === 'appstore' ?
+        (app.genres || app.attributes?.genres || []) :
+        (app.genres || []);
+      let genreIds = store === 'appstore' ?
+        (app.genreIds || app.attributes?.genreIds || []) :
+        (app.genreIds || []);
+      
+      // Add primary genre to genres array if not already present
+      if (primaryGenre && !genres.includes(primaryGenre)) {
+        genres = [primaryGenre, ...genres];
+      }
+      if (primaryGenreId && !genreIds.includes(primaryGenreId)) {
+        genreIds = [primaryGenreId, ...genreIds];
+      }
+
+      // Extract installs information (Play Store only)
+      const installs = store === 'playstore' ? app.installs || app.minInstalls || '0+' : undefined;
 
       // Extract available countries
       const availableCountries = store === 'appstore' ? (app.availableCountries || []) : [];
@@ -81,6 +110,8 @@ export const unifyAppStoreResults = (apps: any[], store: 'appstore' | 'playstore
         icon,
         developer,
         developerId,
+        developerUrl,
+        developerWebsite,
         url,
         description,
         score,
@@ -93,12 +124,14 @@ export const unifyAppStoreResults = (apps: any[], store: 'appstore' | 'playstore
         updated,
         releaseNotes,
         size,
+        ...(store === 'appstore' ? { requiredOsVersion } : { androidVersion }),
         contentRating,
         screenshots,
         ipadScreenshots,
-        genre,
-        genreId,
+        genres,
+        genreIds,
         store,
+        ...(installs ? { installs } : {}),
         ...(store === 'appstore' ? (app.privacyData || {}) : {}),
         availableCountries,
         languages,
