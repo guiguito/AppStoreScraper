@@ -145,18 +145,37 @@ export const unifyAppStoreResults = (apps: any[], store: 'appstore' | 'playstore
   }).filter(app => app !== null) as UnifiedAppResult[];
 };
 
-export const unifyReviews = (reviews: any[], store: 'appstore' | 'playstore'): UnifiedReview[] => {
-  return reviews.map(review => ({
-    id: review.id,
-    userName: review.userName,
-    title: store === 'appstore' ? review.title : '',
-    text: review.text,
-    rating: review.score,
-    score: review.score,
-    version: review.version || 'N/A',
-    updated: review.date,
-    store,
-    userUrl: store === 'appstore' ? review.userUrl : '',
-    url: store === 'appstore' ? review.url : '',
-  }));
+export const unifyReviews = (reviews: any[], store: 'appstore' | 'playstore', appId?: string): UnifiedReview[] => {
+  return reviews.map(review => {
+    const baseUrl = store === 'playstore' && appId
+      ? `https://play.google.com/store/apps/details?id=${appId}`
+      : '';
+
+    const reviewUrl = store === 'playstore' && review.id && appId
+      ? `${baseUrl}&reviewId=${review.id}`
+      : review.url || '';
+
+    const date = review.date || review.updated;
+    
+    return {
+      id: review.id,
+      userName: review.userName,
+      userImage: review.userImage || '',
+      date: date,
+      score: review.score,
+      scoreText: review.score?.toString() || '',
+      text: review.text,
+      title: store === 'appstore' ? review.title : '',
+      url: reviewUrl,
+      version: review.version || '',
+      replyDate: review.replyDate || '',
+      replyText: review.replyText || '',
+      thumbsUp: review.thumbsUp || 0,
+      criteria: review.criteria || '',
+      rating: review.score,
+      store,
+      userUrl: store === 'playstore' ? reviewUrl : (review.userUrl || ''),
+      updated: date,
+    };
+  });
 };

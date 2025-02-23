@@ -50,19 +50,26 @@ export const fetchPlayStoreReviews = async (id: string, lang: string, limit: num
       lang,
       num: limit,
     });
-    return reviews.data.map((review: { id: string; userName: string; text: string;
-      score: number; version?: string; date: string; url?: string }): UnifiedReview => ({
+    const mappedReviews = reviews.data.map((review: any): UnifiedReview => ({
       id: review.id,
       userName: review.userName,
-      text: review.text,
+      userImage: review.userImage || '',
+      date: review.date,
       score: review.score,
-      version: review.version,
-      updated: review.date,
-      userUrl: review.url,
+      scoreText: review.score?.toString() || '',
+      text: review.text,
       title: '',
+      url: '',
+      version: review.version || '',
+      replyDate: review.replyDate || '',
+      replyText: review.replyText || '',
+      thumbsUp: review.thumbsUp || 0,
+      criteria: review.criteria || '',
       rating: review.score,
       store: 'playstore' as const,
+      userUrl: review.url || '',
     }));
+    return unifyReviews(mappedReviews, 'playstore', id);
   } catch (error) {
     logger.error('Error fetching Play Store reviews:', error);
     throw error;
@@ -76,7 +83,7 @@ export const fetchReviews = async (id: string, store: string, lang: string,
     return unifyReviews(reviews, 'appstore');
   } else if (store === 'playstore') {
     const reviews = await fetchPlayStoreReviews(id, lang, limit);
-    return unifyReviews(reviews, 'playstore');
+    return reviews;
   }
   throw new Error('Invalid store specified');
 };

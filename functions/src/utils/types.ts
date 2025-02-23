@@ -31,15 +31,22 @@ export type GooglePlayReview = PlayStoreReview
 export interface UnifiedReview {
   id: string;
   userName: string;
-  text: string;
+  userImage?: string;
+  date?: string;
   score: number;
-  version?: string;
-  updated: string;
-  url?: string;
+  scoreText?: string;
+  text: string;
   title: string;
+  url?: string;
+  version?: string;
+  replyDate?: string;
+  replyText?: string;
+  thumbsUp?: number;
+  criteria?: string;
   rating: number;
   store: 'appstore' | 'playstore';
   userUrl?: string;
+  updated?: string;
   content?: string;
 }
 

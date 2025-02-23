@@ -31,7 +31,9 @@ export const analyzeSentiment = async (
     let filteredReviews = reviews;
     if (startDate || endDate) {
       filteredReviews = reviews.filter(review => {
-        const reviewDate = new Date(review.updated);
+        // Use updated, date, or current time as fallback
+        const reviewTimestamp = review.updated || review.date || new Date().toISOString();
+        const reviewDate = new Date(reviewTimestamp);
         if (startDate && reviewDate < startDate) return false;
         if (endDate && reviewDate > endDate) return false;
         return true;

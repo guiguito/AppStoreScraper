@@ -61,7 +61,23 @@ reviewsRouter.get('/reviews/:store/:id/csv', async (req: ValidatedRequest, res, 
     const reviews = await fetchReviews(id, store, lang, country, limit);
     
     const parser = new Parser({
-      fields: ['id', 'userName', 'title', 'text', 'rating', 'version', 'updated', 'store'],
+      fields: [
+        'id',
+        'userName',
+        'userImage',
+        'date',
+        'score',
+        'scoreText',
+        'url',
+        'title',
+        'text',
+        'replyDate',
+        'replyText',
+        'version',
+        'thumbsUp',
+        'criteria',
+        'store'
+      ],
     });
     
     const csv = parser.parse(reviews);
