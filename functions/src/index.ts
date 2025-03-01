@@ -29,5 +29,8 @@ export const api = onRequest({
   timeoutSeconds: 300,
   memory: '256MiB',
   minInstances: 0,
-  maxInstances: 100
+  maxInstances: 100,
 }, app);
+
+// Export scheduled functions
+export * from './scheduled.js';
