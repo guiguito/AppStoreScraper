@@ -5,7 +5,7 @@ import {
   fetchAllStoreData, 
   fetchAppStoreCategories, 
   fetchPlayStoreCategories, 
-  fetchStoreCollections 
+  fetchStoreCollections, 
 } from '../services/storeData.js';
 import { DateTime } from 'luxon';
 import { ValidatedRequest } from '../utils/types.js';
