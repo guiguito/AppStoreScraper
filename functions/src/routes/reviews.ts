@@ -76,7 +76,7 @@ reviewsRouter.get('/reviews/:store/:id/csv', async (req: ValidatedRequest, res, 
         'version',
         'thumbsUp',
         'criteria',
-        'store'
+        'store',
       ],
     });
     

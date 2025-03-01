@@ -1,0 +1,179 @@
+## Core Operating Principles
+
+1. **Instruction Reception and Understanding**
+   - Carefully read and interpret user instructions
+   - Ask specific questions when clarification is needed
+   - Clearly identify technical constraints and requirements
+   - Do not perform any operations beyond what is instructed
+
+2. **In-depth Analysis and Planning**
+   ```markdown
+   ## Task Analysis
+   - Purpose: [Final goal of the task]
+   - Technical Requirements: [Technology stack and constraints]
+   - Implementation Steps: [Specific steps]
+   - Risks: [Potential issues]
+   - Quality Standards: [Requirements to meet]
+   ```
+
+3. **Implementation Planning**
+   ```markdown
+   ## Implementation Plan
+   1. [Specific step 1]
+      - Detailed implementation content
+      - Expected challenges and countermeasures
+   2. [Specific step 2]
+      ...
+   ```
+
+4. **Comprehensive Implementation and Verification**
+   - Execute file operations and related processes in optimized complete sequences
+   - Continuously verify against quality standards throughout implementation
+   - Address issues promptly with integrated solutions
+   - Execute processes only within the scope of instructions, without adding extra features or operations
+
+5. **Continuous Feedback**
+   - Regularly report implementation progress
+   - Confirm at critical decision points
+   - Promptly report issues with proposed solutions
+
+## Technology Stack and Constraints
+
+### Core Technologies
+- TypeScript: ^4.9.0
+- Node.js: ^18.0.0
+- Firebase Functions: ^6.3.1
+
+### Frontend
+- React: ^18.2.0
+- Material UI: ^5.15.6
+- Recharts: ^2.15.1
+
+### Backend
+- Express: ^4.18.2
+- Firebase Admin: ^13.0.2
+- app-store-scraper: ^0.17.0
+- app-store-client: ^1.0.4
+- json2csv: ^5.0.7
+- luxon: ^3.5.0
+
+### Development Tools
+- Vite: ^5.0.12
+- concurrently: ^8.2.2
+- ts-node: ^10.9.2
+
+## Quality Management Protocol
+
+### 1. Code Quality
+- Strict TypeScript type checking
+- Consistent error handling patterns
+- Proper input validation
+- Maintainable code structure
+
+### 2. Performance
+- Efficient API request handling
+- Appropriate caching mechanisms
+- Rate limiting for external API calls
+- Optimized data processing
+
+### 3. Security
+- Validation of all user inputs
+- Proper error handling without exposing sensitive information
+- Secure handling of API keys and credentials
+- Request sanitization
+
+### 4. API Design
+- Consistent endpoint structure
+- Clear parameter validation
+- Appropriate HTTP status codes
+- Well-structured response formats
+
+## Project Structure Convention
+
+```
+AppStoreScraper/
+├── functions/
+│   ├── src/
+│   │   ├── index.ts                # Main entry point
+│   │   ├── routes/                 # API route handlers
+│   │   ├── services/               # Service layer for external APIs
+│   │   └── utils/                  # Utility functions and types
+│   ├── package.json
+│   └── tsconfig.json
+├── src/                            # Frontend React application
+├── public/                         # Static assets
+└── server.js                       # Development server
+```
+
+## Important Constraints
+
+1. **API Endpoint Structure**
+   - All endpoints must follow RESTful conventions
+   - Parameters must be properly validated
+   - Responses must be consistent in format
+   - Error handling must be comprehensive
+
+2. **External API Integration**
+   - Implement proper rate limiting
+   - Handle API failures gracefully
+   - Cache responses when appropriate
+   - Validate all external data
+
+3. **Code Organization**
+   - Route handlers in `functions/src/routes/`
+   - Service logic in `functions/src/services/`
+   - Utility functions in `functions/src/utils/`
+   - Types and interfaces properly defined
+
+## Implementation Process
+
+### 1. Initial Analysis Phase
+```markdown
+### Requirements Analysis
+- Identify the specific App Store data needed
+- Confirm API endpoint requirements
+- Check consistency with existing endpoints
+### Risk Assessment
+- Potential rate limiting issues
+- Data format inconsistencies
+- Performance impacts for large datasets
+```
+
+### 2. Implementation Phase
+- Implement endpoints with proper validation
+- Ensure consistent error handling
+- Add appropriate caching mechanisms
+- Maintain code quality standards
+
+### 3. Verification Phase
+- Test endpoints with various parameters
+- Verify response formats
+- Check error handling scenarios
+- Validate performance under load
+
+### 4. Final Confirmation
+- Ensure all requirements are met
+- Verify code quality
+- Document new endpoints
+- Update README if necessary
+
+## Error Handling Protocol
+
+1. **Problem Identification**
+   - Error message analysis
+   - Impact scope identification
+   - Root cause isolation
+2. **Solution Development**
+   - Evaluation of multiple approaches
+   - Risk assessment
+   - Optimal solution selection
+3. **Implementation and Verification**
+   - Solution implementation
+   - Verification through testing
+   - Side effect confirmation
+4. **Documentation**
+   - Record of problem and solution
+   - Preventive measure proposals
+   - Sharing of learning points
+
+I will follow these instructions to deliver high-quality implementations. I will only perform operations within the scope of the instructions provided and will not add unnecessary implementations. For any unclear points or when important decisions are needed, I will seek confirmation.

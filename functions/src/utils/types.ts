@@ -1,4 +1,5 @@
 import { Request } from 'express';
+import { StoreType } from './stores.js';
 import { Timestamp } from 'firebase-admin/firestore';
 
 export interface ValidatedRequest extends Request {
@@ -44,7 +45,7 @@ export interface UnifiedReview {
   thumbsUp?: number;
   criteria?: string;
   rating: number;
-  store: 'appstore' | 'playstore';
+  store: StoreType;
   userUrl?: string;
   updated?: string;
   content?: string;
@@ -146,7 +147,7 @@ export interface UnifiedAppResult {
   screenshots?: string[];
   genre?: string;
   genreId?: string | number;
-  store: 'appstore' | 'playstore';
+  store: StoreType;
   // Privacy data from App Store
   privacyData?: {
     dataCategories?: Array<{

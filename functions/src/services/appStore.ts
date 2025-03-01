@@ -43,10 +43,12 @@ export const fetchAppStoreReviews = async (id: string, country: string, lang: st
   }
 };
 
-export const fetchPlayStoreReviews = async (id: string, lang: string, limit: number): Promise<UnifiedReview[]> => {
+export const fetchPlayStoreReviews = async (id: string, country: string,
+  lang: string, limit: number): Promise<UnifiedReview[]> => {
   try {
     const reviews = await gplay.reviews({
       appId: id,
+      country,
       lang,
       num: limit,
     });
@@ -66,10 +68,10 @@ export const fetchPlayStoreReviews = async (id: string, lang: string, limit: num
       thumbsUp: review.thumbsUp || 0,
       criteria: review.criteria || '',
       rating: review.score,
-      store: 'playstore' as const,
+      store: STORES.PLAY_STORE,
       userUrl: review.url || '',
     }));
-    return unifyReviews(mappedReviews, 'playstore', id);
+    return unifyReviews(mappedReviews, STORES.PLAY_STORE, id);
   } catch (error) {
     logger.error('Error fetching Play Store reviews:', error);
     throw error;
@@ -78,11 +80,11 @@ export const fetchPlayStoreReviews = async (id: string, lang: string, limit: num
 
 export const fetchReviews = async (id: string, store: string, lang: string,
   country: string, limit: number): Promise<UnifiedReview[]> => {
-  if (store === 'appstore') {
+  if (store === STORES.APP_STORE) {
     const reviews = await fetchAppStoreReviews(id, country, lang, limit);
-    return unifyReviews(reviews, 'appstore');
-  } else if (store === 'playstore') {
-    const reviews = await fetchPlayStoreReviews(id, lang, limit);
+    return unifyReviews(reviews, STORES.APP_STORE);
+  } else if (store === STORES.PLAY_STORE) {
+    const reviews = await fetchPlayStoreReviews(id, country, lang, limit);
     return reviews;
   }
   throw new Error('Invalid store specified');
@@ -112,8 +114,8 @@ export const searchApps = async (term: string, country: string, lang: string) =>
 
     // Combine results from both stores into a single array
     return [
-      ...unifyAppStoreResults(appStoreResults || [], 'appstore'),
-      ...unifyAppStoreResults(playStoreResults || [], 'playstore'),
+      ...unifyAppStoreResults(appStoreResults || [], STORES.APP_STORE),
+      ...unifyAppStoreResults(playStoreResults || [], STORES.PLAY_STORE),
     ];
   } catch (error) {
     logger.error('Error in search:', error);
@@ -134,7 +136,7 @@ export const fetchSimilarApps = async (id: string, store: string, country: strin
       // Filter out the original app and return the first 10 similar apps
       return unifyAppStoreResults(
         similarApps.filter(a => a.id !== id).slice(0, 10),
-        'appstore'
+        STORES.APP_STORE
       );
     } else if (store === STORES.PLAY_STORE) {
       const similarApps = await gplay.similar({
@@ -142,7 +144,7 @@ export const fetchSimilarApps = async (id: string, store: string, country: strin
         lang,
         country,
       });
-      return unifyAppStoreResults(similarApps.slice(0, 10), 'playstore');
+      return unifyAppStoreResults(similarApps.slice(0, 10), STORES.PLAY_STORE);
     }
     throw new Error('Invalid store specified');
   } catch (error) {

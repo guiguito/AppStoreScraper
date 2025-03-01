@@ -1,6 +1,8 @@
 import { UnifiedAppResult, UnifiedReview } from './types.js';
 
-export const unifyAppStoreResults = (apps: any[], store: 'appstore' | 'playstore'): UnifiedAppResult[] => {
+import { STORES, StoreType } from './stores.js';
+
+export const unifyAppStoreResults = (apps: any[], store: StoreType): UnifiedAppResult[] => {
   if (!apps || !Array.isArray(apps)) {
     console.error('Invalid apps array:', apps);
     return [];
@@ -145,13 +147,13 @@ export const unifyAppStoreResults = (apps: any[], store: 'appstore' | 'playstore
   }).filter(app => app !== null) as UnifiedAppResult[];
 };
 
-export const unifyReviews = (reviews: any[], store: 'appstore' | 'playstore', appId?: string): UnifiedReview[] => {
+export const unifyReviews = (reviews: any[], store: StoreType, appId?: string): UnifiedReview[] => {
   return reviews.map(review => {
-    const baseUrl = store === 'playstore' && appId
+    const baseUrl = store === STORES.PLAY_STORE && appId
       ? `https://play.google.com/store/apps/details?id=${appId}`
       : '';
 
-    const reviewUrl = store === 'playstore' && review.id && appId
+    const reviewUrl = store === STORES.PLAY_STORE && review.id && appId
       ? `${baseUrl}&reviewId=${review.id}`
       : review.url || '';
 
@@ -165,7 +167,7 @@ export const unifyReviews = (reviews: any[], store: 'appstore' | 'playstore', ap
       score: review.score,
       scoreText: review.score?.toString() || '',
       text: review.text,
-      title: store === 'appstore' ? review.title : '',
+      title: store === STORES.APP_STORE ? review.title : '',
       url: reviewUrl,
       version: review.version || '',
       replyDate: review.replyDate || '',
@@ -174,7 +176,7 @@ export const unifyReviews = (reviews: any[], store: 'appstore' | 'playstore', ap
       criteria: review.criteria || '',
       rating: review.score,
       store,
-      userUrl: store === 'playstore' ? reviewUrl : (review.userUrl || ''),
+      userUrl: store === STORES.PLAY_STORE ? reviewUrl : (review.userUrl || ''),
       updated: date,
     };
   });
