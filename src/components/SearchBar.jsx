@@ -14,11 +14,12 @@ import CountrySelector from './CountrySelector';
 import { useNavigate } from 'react-router-dom';
 import { buildApiUrl } from '../config';
 
-function SearchBar({ country, onCountryChange }) {
+function SearchBar({ country, onCountryChange, initialSearchTerm = '' }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState([]);
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState(initialSearchTerm);
+  const [value, setValue] = useState(null); // Add state for the selected value
   const [loading, setLoading] = useState(false);
 
 
@@ -95,15 +96,25 @@ function SearchBar({ country, onCountryChange }) {
             onOpen={() => setOpen(true)}
             onClose={() => setOpen(false)}
             isOptionEqualToValue={(option, value) => option.id === value.id}
-            getOptionLabel={(option) => option.title}
+            getOptionLabel={(option) => option.title || ''}
             options={options}
             loading={loading}
+            value={value}
+            inputValue={inputValue}
             onInputChange={(event, newInputValue) => {
               setInputValue(newInputValue);
             }}
             onChange={(event, newValue) => {
+              setValue(newValue);
               if (newValue) {
                 navigate(`/app/${newValue.store}/${newValue.id}?lang=en&country=${country}`);
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && inputValue.trim()) {
+                // Navigate to search results page on Enter
+                event.preventDefault();
+                navigate(`/search?term=${encodeURIComponent(inputValue.trim())}&country=${country}&lang=en`);
               }
             }}
             renderInput={(params) => (

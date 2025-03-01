@@ -90,33 +90,46 @@ export const fetchReviews = async (id: string, store: string, lang: string,
   throw new Error('Invalid store specified');
 };
 
+export const searchAppStore = async (term: string, country: string, lang: string) => {
+  try {
+    const results = await appStoreClient.search({
+      term,
+      country: getCountryCode(country),
+      language: lang,
+    });
+    return unifyAppStoreResults(results || [], STORES.APP_STORE);
+  } catch (error) {
+    logger.error('Error searching App Store:', error);
+    return [];
+  }
+};
+
+export const searchPlayStore = async (term: string, country: string, lang: string) => {
+  try {
+    const results = await gplay.search({
+      term,
+      lang,
+      country,
+      num: 50, // Limit results to 50 apps
+    });
+    return unifyAppStoreResults(results || [], STORES.PLAY_STORE);
+  } catch (error) {
+    logger.error('Error searching Play Store:', error);
+    return [];
+  }
+};
+
 export const searchApps = async (term: string, country: string, lang: string) => {
   try {
     const [appStoreResults, playStoreResults] = await Promise.all([
-      appStoreClient.search({ 
-        term, 
-        country: getCountryCode(country), 
-        language: lang, 
-      }).catch((error: unknown) => {
-        logger.error('Error searching App Store:', error);
-        return [];
-      }),
-      gplay.search({ 
-        term, 
-        lang, 
-        country,
-        num: 50, // Limit results to 50 apps
-      }).catch((error: unknown) => {
-        logger.error('Error searching Play Store:', error);
-        return [];
-      }),
+      searchAppStore(term, country, lang),
+      searchPlayStore(term, country, lang),
     ]);
 
-    // Combine results from both stores into a single array
-    return [
-      ...unifyAppStoreResults(appStoreResults || [], STORES.APP_STORE),
-      ...unifyAppStoreResults(playStoreResults || [], STORES.PLAY_STORE),
-    ];
+    return {
+      appStore: appStoreResults,
+      playStore: playStoreResults,
+    };
   } catch (error) {
     logger.error('Error in search:', error);
     throw error;

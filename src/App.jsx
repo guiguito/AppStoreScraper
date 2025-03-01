@@ -6,6 +6,7 @@ import { createAppTheme } from './theme';
 import SearchBar from './components/SearchBar';
 import AppDetails from './components/AppDetails';
 import StoreSelector from './components/StoreSelector';
+import SearchResults from './components/SearchResults';
 
 import AppCollections from './components/AppCollections';
 import ReviewsDetails from './components/ReviewsDetails';
@@ -188,6 +189,7 @@ function AppContent() {
             <ErrorBoundary>
               <Routes>
                 <Route path="/" element={<HomePage country={selectedCountry} onCountryChange={handleCountryChange} />} />
+                <Route path="/search" element={<SearchResults />} />
                 <Route path="/app/:store/:id" element={<AppDetails country={selectedCountry} />} />
                 <Route path="/app/:store/:id/reviews" element={<ReviewsDetails />} />
               </Routes>

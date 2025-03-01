@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { buildApiUrl } from '../config';
 import ScreenshotGallery from './ScreenshotGallery';
 import AppDetailsShimmer from './ShimmerEffect';
@@ -32,6 +32,7 @@ import CollapsibleSection from './CollapsibleSection';
 
 function AppDetails({ country: initialCountry }) {
   const { id, store } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const [details, setDetails] = useState(null);
   const [reviews, setReviews] = useState([]);
@@ -45,6 +46,9 @@ function AppDetails({ country: initialCountry }) {
   const [selectedCountry, setSelectedCountry] = useState('US');
   const [availableCountries, setAvailableCountries] = useState([]);
   const [loadingCountries, setLoadingCountries] = useState(true);
+  
+  // Get the search state from location state
+  const searchState = location.state?.searchState;
 
   // Set initial language and country from URL params
   useEffect(() => {
@@ -194,11 +198,15 @@ function AppDetails({ country: initialCountry }) {
             startIcon={<ArrowBack />}
             onClick={() => {
               localStorage.setItem('selectedStore', store);
-              navigate('/');
+              if (searchState) {
+                navigate('/search', { state: { searchState } });
+              } else {
+                navigate('/');
+              }
             }}
             sx={{ mb: 2 }}
           >
-            Back to Search
+            {searchState ? 'Back to Results' : 'Back to Search'}
           </Button>
 
           <Grid container spacing={3}>
