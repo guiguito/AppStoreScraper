@@ -2,22 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { Grid, Typography, Card, CardContent, Avatar, Box, Skeleton, Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AppsIcon from '@mui/icons-material/Apps';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import StarIcon from '@mui/icons-material/Star';
+import PaidIcon from '@mui/icons-material/Paid';
+import NewReleasesIcon from '@mui/icons-material/NewReleases';
+import MoneyOffIcon from '@mui/icons-material/MoneyOff';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import { useNavigate } from 'react-router-dom';
 import { useApiWithCache } from '../hooks/useApiWithCache';
 
 const appStoreCollections = [
-  { id: 'topfreeapplications', title: 'Top Free Apps' },
-  { id: 'topgrossingapplications', title: 'Top Grossing' },
-  { id: 'toppaidapplications', title: 'Top Paid Apps' },
-  { id: 'newapplications', title: 'New Apps' },
-  { id: 'newfreeapplications', title: 'New Free Apps' },
-  { id: 'newpaidapplications', title: 'New Paid Apps' }
+  { id: 'topfreeapplications', title: 'Top Free Apps', icon: <MoneyOffIcon /> },
+  { id: 'topgrossingapplications', title: 'Top Grossing', icon: <TrendingUpIcon /> },
+  { id: 'toppaidapplications', title: 'Top Paid Apps', icon: <PaidIcon /> },
+  { id: 'newapplications', title: 'New Apps', icon: <NewReleasesIcon /> },
+  { id: 'newfreeapplications', title: 'New Free Apps', icon: <NewReleasesIcon /> },
+  { id: 'newpaidapplications', title: 'New Paid Apps', icon: <AttachMoneyIcon /> }
 ];
 
 const playStoreCollections = [
-  { id: 'topselling_free', title: 'Top Free Apps' },
-  { id: 'topselling_paid', title: 'Top Paid Apps' },
-  { id: 'topgrossing', title: 'Top Grossing' }
+  { id: 'topselling_free', title: 'Top Free Apps', icon: <StarIcon /> },
+  { id: 'topselling_paid', title: 'Top Paid Apps', icon: <PaidIcon /> },
+  { id: 'topgrossing', title: 'Top Grossing', icon: <TrendingUpIcon /> }
 ];
 
 function AppCollections({ country, selectedStore }) {
@@ -144,9 +150,14 @@ function AppCollections({ country, selectedStore }) {
       <Grid item xs={12} md={6} lg={4} sx={{ mb: { xs: 4, sm: 6 } }}>
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600, letterSpacing: '0.02em' }}>
-              {collection.title}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ color: 'primary.main', mr: 1 }}>
+                {collection.icon}
+              </Box>
+              <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600, letterSpacing: '0.02em' }}>
+                {collection.title}
+              </Typography>
+            </Box>
             <Typography 
               variant="subtitle2" 
               sx={{ 
@@ -155,7 +166,7 @@ function AppCollections({ country, selectedStore }) {
                 '&:hover': { color: 'primary.main' }
               }}
               onClick={() => {
-                setSelectedCollection({ id: collection.id, title: collection.title });
+                setSelectedCollection({ id: collection.id, title: collection.title, icon: collection.icon });
                 setModalOpen(true);
               }}
             >
@@ -219,7 +230,12 @@ function AppCollections({ country, selectedStore }) {
         }}
       >
         <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          {selectedCollection?.title}
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ color: 'primary.main', mr: 1 }}>
+              {selectedCollection?.icon}
+            </Box>
+            {selectedCollection?.title}
+          </Box>
           <IconButton
             onClick={() => setModalOpen(false)}
             sx={{
