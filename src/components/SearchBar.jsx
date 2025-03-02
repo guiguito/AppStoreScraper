@@ -14,7 +14,7 @@ import CountrySelector from './CountrySelector';
 import { useNavigate } from 'react-router-dom';
 import { buildApiUrl } from '../config';
 
-function SearchBar({ country, onCountryChange, initialSearchTerm = '' }) {
+function SearchBar({ country, onCountryChange, initialSearchTerm = '', selectedStore }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState([]);
@@ -34,18 +34,42 @@ function SearchBar({ country, onCountryChange, initialSearchTerm = '' }) {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const url = buildApiUrl('/search', {
+        const params = {
           term: inputValue,
           lang: 'en',
           country: country
-        });
+        };
+        
+        // Add store parameter if selectedStore is provided
+        if (selectedStore) {
+          params.store = selectedStore;
+        }
+        
+        const url = buildApiUrl('/search', params);
         const response = await fetch(url);
         const data = await response.json();
         if (active) {
-          setOptions(data);
+          // Process the data to ensure it's in the correct format (array)
+          let processedOptions = [];
+          
+          if (data && typeof data === 'object') {
+            // Handle object format with store properties
+            if (data.appStore || data.playStore) {
+              processedOptions = [
+                ...(Array.isArray(data.appStore) ? data.appStore : []),
+                ...(Array.isArray(data.playStore) ? data.playStore : [])
+              ];
+            } else if (Array.isArray(data)) {
+              // Handle array format directly
+              processedOptions = data;
+            }
+          }
+          
+          setOptions(processedOptions);
         }
       } catch (error) {
         console.error('Error fetching search results:', error);
+        setOptions([]);
       } finally {
         setLoading(false);
       }
@@ -57,7 +81,7 @@ function SearchBar({ country, onCountryChange, initialSearchTerm = '' }) {
       active = false;
       clearTimeout(debounceTimer);
     };
-  }, [inputValue]);
+  }, [inputValue, country, selectedStore]);
 
   return (
     <Stack
