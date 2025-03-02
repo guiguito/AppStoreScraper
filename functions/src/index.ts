@@ -1,9 +1,11 @@
 import { onRequest } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import express from 'express';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { AppStoreClient } from 'app-store-client';
 import router from './routes/index.js';
+import { storeDataSyncImplementation } from './services/scheduled.js';
 
 // Initialize Firebase Admin
 initializeApp();
@@ -33,4 +35,10 @@ export const api = onRequest({
 }, app);
 
 // Export scheduled functions
-export * from './scheduled.js';
+export const storeDataSync = onSchedule({
+  schedule: 'every 1 hours',
+  timeZone: 'UTC',
+  retryCount: 3,
+  maxRetrySeconds: 60,
+  memory: '256MiB',
+}, storeDataSyncImplementation);

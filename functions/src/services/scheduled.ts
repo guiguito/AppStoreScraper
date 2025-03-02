@@ -1,13 +1,12 @@
-import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as logger from 'firebase-functions/logger';
-import { db } from './index.js';
+import { db } from '../index.js';
 import { 
   fetchAppStoreCategories, 
   fetchPlayStoreCategories, 
   fetchStoreCollections, 
-} from './services/storeData.js';
+} from './storeData.js';
 import { DateTime } from 'luxon';
-import { STORES } from './utils/stores.js';
+import { STORES } from '../utils/stores.js';
 
 /**
  * Saves a document to Firestore with timestamp information
@@ -26,16 +25,10 @@ async function saveDocument(path: string, data: any) {
 }
 
 /**
- * Scheduled function that runs every hour to save App Store and Play Store
+ * Implementation of the scheduled function that runs every hour to save App Store and Play Store
  * categories and collections to Firestore
  */
-export const storeDataSync = onSchedule({
-  schedule: 'every 1 hours',
-  timeZone: 'UTC',
-  retryCount: 3,
-  maxRetrySeconds: 60,
-  memory: '256MiB',
-}, async () => {
+export const storeDataSyncImplementation = async () => {
   try {
     logger.info('Starting scheduled store data sync');
     
@@ -106,4 +99,4 @@ export const storeDataSync = onSchedule({
     logger.error('Error in scheduled store data sync:', error);
     throw error;
   }
-});
+};
