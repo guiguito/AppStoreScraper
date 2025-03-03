@@ -24,7 +24,36 @@ const PLAY_STORE_COLLECTIONS = {
 };
 
 // Excluded App Store category IDs (magazines)
-const EXCLUDED_APP_STORE_CATEGORIES = [6021]; // 6021 is for Magazines & Newspapers
+const EXCLUDED_APP_STORE_CATEGORIES = [
+  13007, // MAGAZINES_ARTS
+  13006, // MAGAZINES_AUTOMOTIVE
+  13008, // MAGAZINES_WEDDINGS
+  13009, // MAGAZINES_BUSINESS
+  13010, // MAGAZINES_CHILDREN
+  13011, // MAGAZINES_COMPUTER
+  13012, // MAGAZINES_FOOD
+  13013, // MAGAZINES_CRAFTS
+  13014, // MAGAZINES_ELECTRONICS
+  13015, // MAGAZINES_ENTERTAINMENT
+  13002, // MAGAZINES_FASHION
+  13017, // MAGAZINES_HEALTH
+  13018, // MAGAZINES_HISTORY
+  13003, // MAGAZINES_HOME
+  13019, // MAGAZINES_LITERARY
+  13020, // MAGAZINES_MEN
+  13021, // MAGAZINES_MOVIES_AND_MUSIC
+  13001, // MAGAZINES_POLITICS
+  13004, // MAGAZINES_OUTDOORS
+  13023, // MAGAZINES_FAMILY
+  13024, // MAGAZINES_PETS
+  13025, // MAGAZINES_PROFESSIONAL
+  13026, // MAGAZINES_REGIONAL
+  13027, // MAGAZINES_SCIENCE
+  13005, // MAGAZINES_SPORTS
+  13028, // MAGAZINES_TEENS
+  13029, // MAGAZINES_TRAVEL
+  13030, // MAGAZINES_WOMEN
+];
 
 /**
  * Fetches all App Store categories
@@ -74,21 +103,20 @@ export const fetchAppStoreCategories = async () => {
  */
 export const fetchPlayStoreCategories = async () => {
   try {
-    const categories = await gplay.categories();
+    // Get categories directly from the gplay library
+    // We need to type the category object since TypeScript doesn't recognize it
+    const categoryObject = gplay.category as Record<string, string>;
     
-    // Filter out any magazine-related categories
-    const filteredCategories = categories.filter((category: string) => 
-      !category.toLowerCase().includes('magazine') && 
-      !category.toLowerCase().includes('news')
-    );
-    
-    // Convert to objects with id and name
-    return filteredCategories.map((category: string) => ({
-      id: category,
-      name: category.split('_')
+    // Convert to array of objects
+    const enumCategories = Object.entries(categoryObject).map(([key, value]) => ({
+      id: value,
+      name: value.split('_')
         .map((word: string) => word.charAt(0) + word.slice(1).toLowerCase())
         .join(' '),
     }));
+    
+    // Return the categories
+    return enumCategories;
   } catch (error) {
     logger.error('Error fetching Play Store categories:', error);
     return [];
