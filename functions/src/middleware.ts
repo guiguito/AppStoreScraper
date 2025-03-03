@@ -41,6 +41,7 @@ interface ApiError extends Error {
   response?: {
     status?: number;
   };
+  // 'name' is already in Error interface as a required property
 }
 
 export const errorHandler = (
@@ -52,6 +53,16 @@ export const errorHandler = (
 ): Response => {
   logger.error('Error in request:', err);
 
+  // Handle App Store "App not found" errors
+  if (err.name === 'AppNotFoundError' || 
+      (err.message && err.message.includes('App with ID') && err.message.includes('not found'))) {
+    return res.status(404).json({
+      error: 'App not found in the specified store',
+      details: err.message,
+    });
+  }
+
+  // Handle other 404 errors
   if (err.response?.status === 404) {
     return res.status(404).json({
       error: 'Resource not found',

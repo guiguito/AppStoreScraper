@@ -37,7 +37,13 @@ export const fetchAppStoreReviews = async (id: string, country: string, lang: st
       }
     }
     return reviews;
-  } catch (error) {
+  } catch (error: any) {
+    // Check if this is an AppNotFoundError
+    if (error.name === 'AppNotFoundError' || error.message?.includes('App with ID') && error.message?.includes('not found')) {
+      logger.warn(`App not found in App Store: ${id}`);
+      return []; // Return empty array instead of throwing
+    }
+    
     logger.error('Error fetching App Store reviews:', error);
     throw error;
   }

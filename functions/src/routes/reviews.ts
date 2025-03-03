@@ -12,7 +12,7 @@ reviewsRouter.get('/reviews/:store/:id', async (req: ValidatedRequest, res, next
     const { id, store } = req.params;
     const { lang, country } = req.validatedParams!;
     const requestedLimit = req.query.limit?.toString();
-    const limit = Math.min(parseInt(requestedLimit || '20'), 100);
+    const limit = Math.min(parseInt(requestedLimit || '20'), 550);
 
     if (!isValidStore(store)) {
       return res.status(400).json({ error: 'Invalid store specified' });
@@ -33,7 +33,7 @@ reviewsRouter.get('/reviews/:store/:id/sentiment', async (req: ValidatedRequest,
     const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
     const endDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
     const requestedLimit = req.query.limit?.toString();
-    const limit = Math.min(parseInt(requestedLimit || '100'), 200);
+    const limit = Math.min(parseInt(requestedLimit || '100'), 550);
 
     if (!isValidStore(store)) {
       return res.status(400).json({ error: 'Invalid store specified' });
@@ -52,7 +52,7 @@ reviewsRouter.get('/reviews/:store/:id/csv', async (req: ValidatedRequest, res, 
   try {
     const { id, store } = req.params;
     const { lang, country } = req.validatedParams!;
-    const limit = 200;
+    const limit = 550;
 
     if (!isValidStore(store)) {
       return res.status(400).json({ error: 'Invalid store specified' });
