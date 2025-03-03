@@ -45,19 +45,9 @@ export const storeDataSyncImplementation = async () => {
     // Create a batch of promises for saving documents
     const savePromises = [];
     
-    // Save summary document with all data
-    const summaryPath = `storesdata/${currentDate}/summary`;
-    savePromises.push(saveDocument(summaryPath, {
-      categories: {
-        [STORES.APP_STORE]: appStoreCategories,
-        [STORES.PLAY_STORE]: playStoreCategories,
-      },
-      collections,
-    }));
-    
     // Save individual App Store categories
     for (const category of appStoreCategories) {
-      const path = `storesdata/${currentDate}/${STORES.APP_STORE}/categories/${category.id}`;
+      const path = `storesdata/${currentDate}/${STORES.APP_STORE}/category-${category.id}`;
       savePromises.push(saveDocument(path, {
         ...category,
         store: STORES.APP_STORE,
@@ -66,7 +56,7 @@ export const storeDataSyncImplementation = async () => {
     
     // Save individual Play Store categories
     for (const category of playStoreCategories) {
-      const path = `storesdata/${currentDate}/${STORES.PLAY_STORE}/categories/${category.id}`;
+      const path = `storesdata/${currentDate}/${STORES.PLAY_STORE}/category-${category.id}`;
       savePromises.push(saveDocument(path, {
         ...category,
         store: STORES.PLAY_STORE,
@@ -75,7 +65,7 @@ export const storeDataSyncImplementation = async () => {
     
     // Save individual App Store collections
     for (const collection of collections[STORES.APP_STORE]) {
-      const path = `storesdata/${currentDate}/${STORES.APP_STORE}/collections/${collection.id}`;
+      const path = `storesdata/${currentDate}/${STORES.APP_STORE}/collection-${collection.id}`;
       savePromises.push(saveDocument(path, {
         ...collection,
         store: STORES.APP_STORE,
@@ -84,7 +74,7 @@ export const storeDataSyncImplementation = async () => {
     
     // Save individual Play Store collections
     for (const collection of collections[STORES.PLAY_STORE]) {
-      const path = `storesdata/${currentDate}/${STORES.PLAY_STORE}/collections/${collection.id}`;
+      const path = `storesdata/${currentDate}/${STORES.PLAY_STORE}/collection-${collection.id}`;
       savePromises.push(saveDocument(path, {
         ...collection,
         store: STORES.PLAY_STORE,
