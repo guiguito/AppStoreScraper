@@ -108,7 +108,7 @@ export const fetchPlayStoreCategories = async () => {
     const categoryObject = gplay.category as Record<string, string>;
     
     // Convert to array of objects
-    const enumCategories = Object.entries(categoryObject).map(([key, value]) => ({
+    const enumCategories = Object.entries(categoryObject).map(([, value]) => ({
       id: value,
       name: value.split('_')
         .map((word: string) => word.charAt(0) + word.slice(1).toLowerCase())
