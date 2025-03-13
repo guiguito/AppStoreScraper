@@ -4,23 +4,23 @@ import { Collection, Country } from 'app-store-client';
 import gplay from 'google-play-scraper';
 import * as logger from 'firebase-functions/logger';
 import { appStoreClient } from '../index.js';
-import { STORES } from '../utils/stores.js';
+import { STORES, COLLECTION_TYPES } from '../utils/stores.js';
 
 // App Store collection mapping
 const APP_STORE_COLLECTIONS = {
-  'newapplications': Collection.NEW_IOS,
-  'newpaidapplications': Collection.NEW_PAID_IOS,
-  'newfreeapplications': Collection.NEW_FREE_IOS,
-  'topgrossingapplications': Collection.TOP_GROSSING_IOS,
-  'toppaidapplications': Collection.TOP_PAID_IOS,
-  'topfreeapplications': Collection.TOP_FREE_IOS,
+  [COLLECTION_TYPES.NEW_APPLICATIONS]: Collection.NEW_IOS,
+  [COLLECTION_TYPES.NEW_PAID_APPLICATIONS]: Collection.NEW_PAID_IOS,
+  [COLLECTION_TYPES.NEW_FREE_APPLICATIONS]: Collection.NEW_FREE_IOS,
+  [COLLECTION_TYPES.TOP_GROSSING_APPLICATIONS]: Collection.TOP_GROSSING_IOS,
+  [COLLECTION_TYPES.TOP_PAID_APPLICATIONS]: Collection.TOP_PAID_IOS,
+  [COLLECTION_TYPES.TOP_FREE_APPLICATIONS]: Collection.TOP_FREE_IOS,
 };
 
 // Play Store collection mapping
 const PLAY_STORE_COLLECTIONS = {
-  'topselling_free': gplay.collection.TOP_FREE,
-  'topselling_paid': gplay.collection.TOP_PAID,
-  'topgrossing': gplay.collection.GROSSING,
+  [COLLECTION_TYPES.TOP_SELLING_FREE]: gplay.collection.TOP_FREE,
+  [COLLECTION_TYPES.TOP_SELLING_PAID]: gplay.collection.TOP_PAID,
+  [COLLECTION_TYPES.TOP_GROSSING]: gplay.collection.GROSSING,
 };
 
 // Excluded App Store category IDs (magazines)

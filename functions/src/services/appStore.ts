@@ -9,7 +9,7 @@ import { unifyAppStoreResults, unifyReviews } from '../utils/utils.js';
 import { getCountryCode, TOP_30_COUNTRIES } from '../utils/countries.js';
 import { appStoreClient } from '../index.js';
 import { UnifiedReview } from '../utils/types.js';
-import { STORES } from '../utils/stores.js';
+import { STORES, COLLECTION_TYPES } from '../utils/stores.js';
 
 export const fetchAppStoreReviews = async (id: string, country: string, lang: string, limit: number):
   Promise<UnifiedReview[]> => {
@@ -342,26 +342,26 @@ export const fetchAppDetails = async (id: string, store: string, country: string
 
 // Map our collection types to app-store-client collection types
 const APP_STORE_COLLECTION_MAP = {
-  'newapplications': Collection.NEW_IOS,
-  'newpaidapplications': Collection.NEW_PAID_IOS,
-  'newfreeapplications': Collection.NEW_FREE_IOS,
-  'topgrossingapplications': Collection.TOP_GROSSING_IOS,
-  'toppaidapplications': Collection.TOP_PAID_IOS,
-  'topfreeapplications': Collection.TOP_FREE_IOS,
+  [COLLECTION_TYPES.NEW_APPLICATIONS]: Collection.NEW_IOS,
+  [COLLECTION_TYPES.NEW_PAID_APPLICATIONS]: Collection.NEW_PAID_IOS,
+  [COLLECTION_TYPES.NEW_FREE_APPLICATIONS]: Collection.NEW_FREE_IOS,
+  [COLLECTION_TYPES.TOP_GROSSING_APPLICATIONS]: Collection.TOP_GROSSING_IOS,
+  [COLLECTION_TYPES.TOP_PAID_APPLICATIONS]: Collection.TOP_PAID_IOS,
+  [COLLECTION_TYPES.TOP_FREE_APPLICATIONS]: Collection.TOP_FREE_IOS,
 } as const;
 
 // Map our collection types to google-play-scraper collection types
 const PLAY_STORE_COLLECTION_MAP: Record<string, PlayStoreCollection> = {
-  'topselling_free': gplay.collection.TOP_FREE,
-  'topselling_paid': gplay.collection.TOP_PAID,
-  'topgrossing': gplay.collection.GROSSING,
+  [COLLECTION_TYPES.TOP_SELLING_FREE]: gplay.collection.TOP_FREE,
+  [COLLECTION_TYPES.TOP_SELLING_PAID]: gplay.collection.TOP_PAID,
+  [COLLECTION_TYPES.TOP_GROSSING]: gplay.collection.GROSSING,
 };
 
 export const fetchCollectionApps = async (type: string, store: string,
   country: string, lang: string, limit: number, developerId?: string) => {
   try {
     if (store === STORES.APP_STORE) {
-      if (type === 'developer' && developerId) {
+      if (type === COLLECTION_TYPES.DEVELOPER && developerId) {
         const apps = await appStoreClient.appsByDeveloper({
           devId: developerId,
           country: getCountryCode(country),
@@ -372,7 +372,7 @@ export const fetchCollectionApps = async (type: string, store: string,
         return unifyAppStoreResults(apps?.slice(0, limit) || [], STORES.APP_STORE);
       }
 
-      if (type === 'category' && developerId) {
+      if (type === COLLECTION_TYPES.CATEGORY && developerId) {
         const apps = await appStoreClient.list({
           country: getCountryCode(country),
           language: lang,
@@ -418,7 +418,7 @@ export const fetchCollectionApps = async (type: string, store: string,
         throw error;
       }
     } else if (store === STORES.PLAY_STORE) {
-      if (type === 'developer' && developerId) {
+      if (type === COLLECTION_TYPES.DEVELOPER && developerId) {
         try {
           const apps = await gplay.developer({ devId: developerId, country, lang, num: limit });
           if (!apps || !Array.isArray(apps)) {
@@ -437,7 +437,7 @@ export const fetchCollectionApps = async (type: string, store: string,
         }
       }
 
-      if (type === 'category' && developerId) {
+      if (type === COLLECTION_TYPES.CATEGORY && developerId) {
         const apps = await gplay.list({
           category: developerId as PlayStoreCategory,
           collection: gplay.collection.TOP_FREE,

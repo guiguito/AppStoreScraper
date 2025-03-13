@@ -12,6 +12,7 @@ initializeApp();
 
 // Initialize shared clients
 export const db = getFirestore();
+db.settings({ ignoreUndefinedProperties: true });
 export const appStoreClient = new AppStoreClient({
   requestOptions: {
     // Disable verbose logging from the library
