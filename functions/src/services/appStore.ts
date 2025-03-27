@@ -340,6 +340,21 @@ export const fetchAppDetails = async (id: string, store: string, country: string
   }
 };
 
+// Helper function to validate and process API responses
+const validateAndProcessResponse = <T>(apps: T[] | null | undefined, storeName: string, limit: number): T[] => {
+  if (!apps || !Array.isArray(apps)) {
+    logger.error(`Invalid response from ${storeName}:`, apps);
+    throw new Error(`Invalid response from ${storeName}`);
+  }
+  
+  if (apps.length === 0) {
+    logger.warn(`No apps returned from ${storeName} collection`);
+    return [];
+  }
+  
+  return apps.slice(0, limit);
+};
+
 // Map our collection types to app-store-client collection types
 const APP_STORE_COLLECTION_MAP = {
   [COLLECTION_TYPES.NEW_APPLICATIONS]: Collection.NEW_IOS,
@@ -362,82 +377,73 @@ export const fetchCollectionApps = async (type: string, store: string,
   try {
     if (store === STORES.APP_STORE) {
       if (type === COLLECTION_TYPES.DEVELOPER && developerId) {
-        const apps = await appStoreClient.appsByDeveloper({
-          devId: developerId,
-          country: getCountryCode(country),
-          language: lang,
-        });
-        // Only log error cases for developer apps
-        // Skip debug logging
-        return unifyAppStoreResults(apps?.slice(0, limit) || [], STORES.APP_STORE);
-      }
-
-      if (type === COLLECTION_TYPES.CATEGORY && developerId) {
+        try {
+          const apps = await appStoreClient.appsByDeveloper({
+            devId: developerId,
+            country: getCountryCode(country),
+            language: lang,
+          });
+          return unifyAppStoreResults(apps?.slice(0, limit) || [], STORES.APP_STORE);
+        } catch (error) {
+          // Match Play Store behavior for developer not found
+          if (error && typeof error === 'object' && 'message' in error && 
+              typeof error.message === 'string' && error.message.includes('not found')) {
+            logger.warn(`Developer ${developerId} not found in App Store`);
+            return [];
+          }
+          throw error;
+        }
+      } else if (type === COLLECTION_TYPES.CATEGORY && developerId) {
         const apps = await appStoreClient.list({
           country: getCountryCode(country),
           language: lang,
           category: parseInt(developerId),
         });
         return unifyAppStoreResults(apps?.slice(0, limit) || [], STORES.APP_STORE);
-      }
-
-      // Map the collection type to app-store-client format
-      const mappedType = APP_STORE_COLLECTION_MAP[type as keyof typeof APP_STORE_COLLECTION_MAP];
-      if (!mappedType) {
-        logger.error(`Invalid App Store collection type: ${type}. Available types:`,
-          Object.keys(APP_STORE_COLLECTION_MAP));
-        throw new Error(`Invalid App Store collection type: ${type}`);
-      }
-
-      const collection = mappedType as Collection;
-      // Skip info logging for collection fetching
-      
-      try {
-        const apps = await appStoreClient.list({
-          collection,
-          country: getCountryCode(country),
-          language: lang,
-        });
-        // Skip info logging for collection results
-        
-        if (!apps || !Array.isArray(apps)) {
-          logger.error('Invalid response from app store client:', apps);
-          throw new Error('Invalid response from app store client');
+      } else {
+        // Map the collection type to app-store-client format
+        const mappedType = APP_STORE_COLLECTION_MAP[type as keyof typeof APP_STORE_COLLECTION_MAP];
+        if (!mappedType) {
+          logger.error(`Invalid App Store collection type: ${type}. Available types:`,
+            Object.keys(APP_STORE_COLLECTION_MAP));
+          throw new Error(`Invalid App Store collection type: ${type}`);
         }
+
+        const collection = mappedType as Collection;
+        logger.debug(`Fetching App Store collection: ${type}`);
         
-        if (apps.length === 0) {
-          logger.warn('No apps returned from collection');
-          return [];
+        try {
+          const apps = await appStoreClient.list({
+            collection,
+            country: getCountryCode(country),
+            language: lang,
+          });
+          
+          const validatedApps = validateAndProcessResponse(apps, 'App Store client', limit);
+          logger.debug(`Retrieved ${validatedApps.length} apps from App Store collection`);
+          
+          return unifyAppStoreResults(validatedApps, STORES.APP_STORE);
+        } catch (error) {
+          logger.error('Error fetching from app store client:', error);
+          throw error;
         }
-        
-        // Skip debug logging of responses
-        
-        return unifyAppStoreResults(apps.slice(0, limit), STORES.APP_STORE);
-      } catch (error) {
-        logger.error('Error fetching from app store client:', error);
-        throw error;
       }
     } else if (store === STORES.PLAY_STORE) {
       if (type === COLLECTION_TYPES.DEVELOPER && developerId) {
         try {
           const apps = await gplay.developer({ devId: developerId, country, lang, num: limit });
-          if (!apps || !Array.isArray(apps)) {
-            logger.error('Invalid response from Play Store developer API:', apps);
-            return [];
-          }
-          return unifyAppStoreResults(apps, STORES.PLAY_STORE);
+          const validatedApps = validateAndProcessResponse(apps, 'Play Store developer API', limit);
+          return unifyAppStoreResults(validatedApps, STORES.PLAY_STORE);
         } catch (error) {
           // If developer not found, return empty array instead of throwing
           if (error && typeof error === 'object' && 'message' in error && 
-              (error.message as string).includes('not found')) {
+              typeof error.message === 'string' && error.message.includes('not found')) {
             logger.warn(`Developer ${developerId} not found in Play Store`);
             return [];
           }
           throw error;
         }
-      }
-
-      if (type === COLLECTION_TYPES.CATEGORY && developerId) {
+      } else if (type === COLLECTION_TYPES.CATEGORY && developerId) {
         const apps = await gplay.list({
           category: developerId as PlayStoreCategory,
           collection: gplay.collection.TOP_FREE,
@@ -445,45 +451,37 @@ export const fetchCollectionApps = async (type: string, store: string,
           lang,
           num: limit,
         });
-        return unifyAppStoreResults(apps, STORES.PLAY_STORE);
-      }
-
-      // Map the collection type to google-play-scraper format
-      const mappedType = PLAY_STORE_COLLECTION_MAP[type as keyof
-        typeof PLAY_STORE_COLLECTION_MAP] as PlayStoreCollection;
-      if (!mappedType) {
-        logger.error(`Invalid Play Store collection type: ${type}. Available types:`,
-          Object.keys(PLAY_STORE_COLLECTION_MAP));
-        throw new Error(`Invalid Play Store collection type: ${type}`);
-      }
-
-      // Skip info logging for Play Store collection fetching
-      try {
-        const apps = await gplay.list({
-          collection: mappedType as any, // TODO: Remove this cast once types are fixed
-          country,
-          lang,
-          num: limit,
-        });
-
-        if (!apps || !Array.isArray(apps)) {
-          logger.error('Invalid response from Play Store:', apps);
-          throw new Error('Invalid response from Play Store');
+        return unifyAppStoreResults(validateAndProcessResponse(apps, 'Play Store category', limit), STORES.PLAY_STORE);
+      } else {
+        // Map the collection type to google-play-scraper format
+        const mappedType = PLAY_STORE_COLLECTION_MAP[type as keyof typeof PLAY_STORE_COLLECTION_MAP];
+        if (!mappedType) {
+          logger.error(`Invalid Play Store collection type: ${type}. Available types:`,
+            Object.keys(PLAY_STORE_COLLECTION_MAP));
+          throw new Error(`Invalid Play Store collection type: ${type}`);
         }
 
-        if (apps.length === 0) {
-          logger.warn('No apps returned from Play Store collection');
-          return [];
-        }
+        logger.debug(`Fetching Play Store collection: ${type}`);
+        try {
+          const apps = await gplay.list({
+            collection: mappedType,  // Type is now properly handled
+            country,
+            lang,
+            num: limit,
+          });
 
-        // Skip debug logging of Play Store data
-        return unifyAppStoreResults(apps, STORES.PLAY_STORE);
-      } catch (error) {
-        logger.error('Error fetching from Play Store:', error);
-        throw error;
+          const validatedApps = validateAndProcessResponse(apps, 'Play Store', limit);
+          logger.debug(`Retrieved ${validatedApps.length} apps from Play Store collection`);
+          
+          return unifyAppStoreResults(validatedApps, STORES.PLAY_STORE);
+        } catch (error) {
+          logger.error('Error fetching from Play Store:', error);
+          throw error;
+        }
       }
+    } else {
+      throw new Error('Invalid store specified');
     }
-    throw new Error('Invalid store specified');
   } catch (error) {
     logger.error('Error fetching collection:', error);
     throw error;
