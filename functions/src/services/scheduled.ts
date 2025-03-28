@@ -65,7 +65,7 @@ export const storeDataSyncImplementation = async (context: any) => {
         // Save individual App Store categories and their apps for this country
         for (const category of appStoreCategories) {
           try {
-            const categoryPath = `storesdata/${currentDate}/${STORES.APP_STORE}/${countryCode}/category-${category.id}`;
+            const categoryPath = `storesdata/${currentDate}/${STORES.APP_STORE}/${countryCode}/category/${category.id}`;
             
             logger.debug(`Fetching App Store category ${category.id} for ${countryCode}`);
             const categoryApps = await fetchCollectionApps(
@@ -106,7 +106,7 @@ export const storeDataSyncImplementation = async (context: any) => {
         for (const category of playStoreCategories) {
           try {
             const categoryPath = `storesdata/${currentDate}/${STORES.PLAY_STORE}/` +
-              `${countryCode}/category-${category.id}`;
+              `${countryCode}/category/${category.id}`;
             
             logger.debug(`Fetching Play Store category ${category.id} for ${countryCode}`);
             const categoryApps = await fetchCollectionApps(
@@ -145,7 +145,7 @@ export const storeDataSyncImplementation = async (context: any) => {
         
         // Save individual App Store collections for this country
         for (const collection of collections[STORES.APP_STORE]) {
-          const path = `storesdata/${currentDate}/${STORES.APP_STORE}/${countryCode}/collection-${collection.id}`;
+          const path = `storesdata/${currentDate}/${STORES.APP_STORE}/${countryCode}/collection/${collection.id}`;
           try {
             logger.debug(`Fetching App Store collection ${collection.id} for ${countryCode}`);
             const collectionApps = await fetchCollectionApps(
@@ -189,7 +189,7 @@ export const storeDataSyncImplementation = async (context: any) => {
         
         // Save individual Play Store collections for this country
         for (const collection of collections[STORES.PLAY_STORE]) {
-          const path = `storesdata/${currentDate}/${STORES.PLAY_STORE}/${countryCode}/collection-${collection.id}`;
+          const path = `storesdata/${currentDate}/${STORES.PLAY_STORE}/${countryCode}/collection/${collection.id}`;
           try {
             logger.debug(`Fetching Play Store collection ${collection.id} for ${countryCode}`);
             const collectionApps = await fetchCollectionApps(
