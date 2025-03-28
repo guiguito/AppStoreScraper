@@ -27,22 +27,16 @@ const app = express();
 app.use(express.json());
 app.use('/', router);
 
-// Export the Firebase function with region specification
-export const api = onRequest({
-  region: 'us-central1',
-  timeoutSeconds: 300,
-  memory: '256MiB',
-  minInstances: 0,
-  maxInstances: 100,
-  concurrency: 80, // Add concurrency setting
-}, app);
+// Export the Firebase function with minimal configuration
+export const api = onRequest((req, res) => {
+  return app(req, res);
+});
 
-// Export scheduled functions with region specification
+// Export scheduled functions with minimal configuration
 export const storeDataSync = onSchedule({
-  region: 'us-central1',
   schedule: 'every 1 hours',
-  timeZone: 'UTC',
-  retryCount: 3,
-  maxRetrySeconds: 60,
-  memory: '256MiB',
-}, storeDataSyncImplementation);
+  region: 'us-central1',
+}, async (event) => {
+  // Call the implementation with the event context
+  return await storeDataSyncImplementation(event);
+});
