@@ -233,8 +233,21 @@ export const storeDataSyncImplementation = async (context: any) => {
       }
     }
     
-    // Execute all save operations
-    await Promise.all(savePromises);
+    // Execute save operations in batches to avoid timeouts
+    const BATCH_SIZE = 10; // Process 10 save operations at a time
+    const batches = [];
+    
+    // Split savePromises into batches
+    for (let i = 0; i < savePromises.length; i += BATCH_SIZE) {
+      batches.push(savePromises.slice(i, i + BATCH_SIZE));
+    }
+    
+    // Process each batch sequentially
+    logger.info(`Processing ${batches.length} batches of save operations`);
+    for (let i = 0; i < batches.length; i++) {
+      logger.info(`Processing batch ${i + 1}/${batches.length} with ${batches[i].length} operations`);
+      await Promise.all(batches[i]);
+    }
     
     logger.info(`Successfully completed store data sync for ${currentDate}`);
   } catch (error) {

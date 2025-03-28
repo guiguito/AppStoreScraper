@@ -30,6 +30,8 @@ app.use('/', router);
 // Export the Firebase function with minimal configuration
 export const api = onRequest({
   region: 'us-central1',
+  timeoutSeconds: 300, // 5 minutes timeout for API requests
+  memory: '512MiB', // Increase memory allocation for API function
 }, (req, res) => {
   return app(req, res);
 });
@@ -38,6 +40,8 @@ export const api = onRequest({
 export const storeDataSync = onSchedule({
   schedule: 'every 1 hours',
   region: 'us-central1',
+  timeoutSeconds: 540, // Increase timeout to 9 minutes (max is 540 seconds for v2 functions)
+  memory: '1GiB', // Increase memory allocation
 }, async (event) => {
   // Call the implementation with the event context
   return await storeDataSyncImplementation(event);
