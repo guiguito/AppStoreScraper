@@ -62,7 +62,7 @@ export const analyzeSentiment = async (
         'Authorization': `Bearer ${MISTRAL_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'mistral-large-latest',
+        model: 'mistral-small-latest',
         messages: [
           {
             role: 'system',
