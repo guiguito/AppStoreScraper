@@ -28,7 +28,9 @@ app.use(express.json());
 app.use('/', router);
 
 // Export the Firebase function with minimal configuration
-export const api = onRequest((req, res) => {
+export const api = onRequest({
+  region: 'us-central1',
+}, (req, res) => {
   return app(req, res);
 });
 
