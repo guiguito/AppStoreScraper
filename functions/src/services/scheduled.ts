@@ -55,7 +55,7 @@ export const storeDataSyncImplementation = async () => {
         const categoryPath = `storesdata/${currentDate}/${STORES.APP_STORE}/category-${category.id}`;
         // Use US as the default country and English as the default language
         const categoryApps = await fetchCollectionApps(COLLECTION_TYPES.CATEGORY,
-          STORES.APP_STORE, 'us', 'en', 300, category.id.toString());     
+          STORES.APP_STORE, 'us', 'en', 200, category.id.toString());     
         if (categoryApps && categoryApps.length > 0) {
           savePromises.push(saveDocument(categoryPath, {
             ...category,
@@ -80,7 +80,7 @@ export const storeDataSyncImplementation = async () => {
         const categoryPath = `storesdata/${currentDate}/${STORES.PLAY_STORE}/category-${category.id}`;
         // Use US as the default country and English as the default language
         const categoryApps = await fetchCollectionApps(COLLECTION_TYPES.CATEGORY, STORES.PLAY_STORE,
-          'us', 'en', 300, category.id);
+          'us', 'en', 200, category.id);
    
         if (categoryApps && categoryApps.length > 0) {
           savePromises.push(saveDocument(categoryPath, {
@@ -105,7 +105,7 @@ export const storeDataSyncImplementation = async () => {
       try {
         // Fetch and save apps for this collection
         const collectionApps = await fetchCollectionApps(collection.id,
-          STORES.APP_STORE, 'us', 'en', 300);
+          STORES.APP_STORE, 'us', 'en', 200);
         
         if (collectionApps && collectionApps.length > 0) {
           savePromises.push(saveDocument(path, {
@@ -136,7 +136,7 @@ export const storeDataSyncImplementation = async () => {
       try {
         // Fetch and save apps for this collection
         const collectionApps = await fetchCollectionApps(collection.id,
-          STORES.PLAY_STORE, 'us', 'en', 300);
+          STORES.PLAY_STORE, 'us', 'en', 200);
         
         if (collectionApps && collectionApps.length > 0) {
           savePromises.push(saveDocument(path, {

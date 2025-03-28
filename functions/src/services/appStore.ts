@@ -398,6 +398,7 @@ export const fetchCollectionApps = async (type: string, store: string,
           country: getCountryCode(country),
           language: lang,
           category: parseInt(developerId),
+          num: limit,
         });
         return unifyAppStoreResults(apps?.slice(0, limit) || [], STORES.APP_STORE);
       } else {
@@ -413,14 +414,39 @@ export const fetchCollectionApps = async (type: string, store: string,
         logger.debug(`Fetching App Store collection: ${type}`);
         
         try {
+          // App Store client has a default limit (appears to be 50) and may not support pagination
+          // We'll make a single request and handle the limit in our code
+          
+          logger.debug(`Requesting up to ${limit} apps from App Store collection`);          
           const apps = await appStoreClient.list({
             collection,
             country: getCountryCode(country),
             language: lang,
+            num: limit,
           });
           
-          const validatedApps = validateAndProcessResponse(apps, 'App Store client', limit);
-          logger.debug(`Retrieved ${validatedApps.length} apps from App Store collection`);
+          // The app-store-client doesn't appear to support direct pagination
+          // If we need more results than what's returned in a single request,
+          // we'll need to implement a platform-specific pagination solution
+          // or modify the app-store-client library to support pagination
+          
+          if (!apps || !Array.isArray(apps)) {
+            logger.warn('No apps returned from App Store or invalid response format');
+            return unifyAppStoreResults([], STORES.APP_STORE);
+          }
+          
+          // Use what we got, up to the requested limit
+          const allApps = apps.slice(0, limit);
+          
+          if (allApps.length < limit && allApps.length > 0) {
+            logger.warn(
+              `App Store API returned fewer results (${allApps.length}) than requested (${limit}).
+              Consider implementing custom pagination.`
+            );
+          }
+          
+          const validatedApps = validateAndProcessResponse(allApps, 'App Store client', limit);
+          logger.debug(`Retrieved ${validatedApps.length} apps from App Store collection (paginated)`);
           
           return unifyAppStoreResults(validatedApps, STORES.APP_STORE);
         } catch (error) {
@@ -463,15 +489,36 @@ export const fetchCollectionApps = async (type: string, store: string,
 
         logger.debug(`Fetching Play Store collection: ${type}`);
         try {
-          const apps = await gplay.list({
-            collection: mappedType,  // Type is now properly handled
-            country,
-            lang,
-            num: limit,
-          });
+          // Play Store has a limit of 200 items per request, we need to paginate for larger limits
+          let allApps: any[] = [];
+          const PLAY_STORE_PAGE_SIZE = 200; // Maximum page size for Play Store
+          const maxPages = Math.ceil(limit / PLAY_STORE_PAGE_SIZE);
+          
+          for (let page = 0; page < maxPages; page++) {
+            if (allApps.length >= limit) break;
+            
+            const pageSize = Math.min(PLAY_STORE_PAGE_SIZE, limit - allApps.length);
+            const pageApps: any[] = await gplay.list({
+              collection: mappedType,
+              country,
+              lang,
+              num: pageSize,
+              start: allApps.length, // Start from where we left off
+            });
+            
+            if (!pageApps || !Array.isArray(pageApps) || pageApps.length === 0) {
+              // No more results or error
+              break;
+            }
+            
+            allApps = [...allApps, ...pageApps];
+            
+            // If we got fewer results than requested, there are no more results
+            if (pageApps.length < pageSize) break;
+          }
 
-          const validatedApps = validateAndProcessResponse(apps, 'Play Store', limit);
-          logger.debug(`Retrieved ${validatedApps.length} apps from Play Store collection`);
+          const validatedApps = validateAndProcessResponse(allApps, 'Play Store', limit);
+          logger.debug(`Retrieved ${validatedApps.length} apps from Play Store collection (paginated)`);
           
           return unifyAppStoreResults(validatedApps, STORES.PLAY_STORE);
         } catch (error) {
