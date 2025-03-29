@@ -352,7 +352,19 @@ const validateAndProcessResponse = <T>(apps: T[] | null | undefined, storeName: 
     return [];
   }
   
-  return apps.slice(0, limit);
+  // Filter out any null or undefined entries
+  const validApps = apps.filter(app => app !== null && app !== undefined);
+  
+  if (validApps.length < apps.length) {
+    logger.warn(`Filtered out ${apps.length - validApps.length} invalid entries from ${storeName} response`);
+  }
+  
+  if (validApps.length === 0) {
+    logger.warn(`All apps were invalid in ${storeName} response`);
+    return [];
+  }
+  
+  return validApps.slice(0, limit);
 };
 
 // Map our collection types to app-store-client collection types
@@ -394,13 +406,37 @@ export const fetchCollectionApps = async (type: string, store: string,
           throw error;
         }
       } else if (type === COLLECTION_TYPES.CATEGORY && developerId) {
-        const apps = await appStoreClient.list({
-          country: getCountryCode(country),
-          language: lang,
-          category: parseInt(developerId),
-          num: limit,
-        });
-        return unifyAppStoreResults(apps?.slice(0, limit) || [], STORES.APP_STORE);
+        try {
+          logger.debug(`Fetching App Store category ${developerId} for ${country}`);
+          const apps = await appStoreClient.list({
+            country: getCountryCode(country),
+            language: lang,
+            category: parseInt(developerId),
+            num: limit,
+          });
+          
+          // Validate the response before processing
+          if (!apps || !Array.isArray(apps)) {
+            logger.warn(`Invalid response for App Store category ${developerId} in ${country}`);
+            return [];
+          }
+          
+          // Filter out any invalid entries that might cause errors
+          const validApps = apps.filter((app: any) => {
+            return app && typeof app === 'object' && 
+              // Ensure required properties exist to prevent 'href' errors
+              ((app.url || app.href || (app.links && app.links.length > 0) || 
+                (app.attributes && app.attributes.url)));
+          });
+          
+          logger.debug(`Retrieved ${validApps.length}/${apps.length} valid apps from
+            App Store category ${developerId}`);
+          return unifyAppStoreResults(validApps.slice(0, limit), STORES.APP_STORE);
+        } catch (error) {
+          logger.error(`Error fetching App Store category ${developerId} for ${country}:`, error);
+          // Return empty array instead of failing completely
+          return [];
+        }
       } else {
         // Map the collection type to app-store-client format
         const mappedType = APP_STORE_COLLECTION_MAP[type as keyof typeof APP_STORE_COLLECTION_MAP];
@@ -431,12 +467,25 @@ export const fetchCollectionApps = async (type: string, store: string,
           // or modify the app-store-client library to support pagination
           
           if (!apps || !Array.isArray(apps)) {
-            logger.warn('No apps returned from App Store or invalid response format');
-            return unifyAppStoreResults([], STORES.APP_STORE);
+            logger.warn(`No apps returned from App Store collection ${type} or invalid response format`);
+            return [];
+          }
+          
+          // Filter out any invalid entries that might cause errors
+          const validApps = apps.filter((app: any) => {
+            return app && typeof app === 'object' && 
+              // Ensure required properties exist to prevent 'href' errors
+              ((app.url || app.href || (app.links && app.links.length > 0) || 
+                (app.attributes && app.attributes.url)));
+          });
+          
+          if (validApps.length < apps.length) {
+            logger.warn(`Filtered out ${apps.length - validApps.length} invalid entries
+               from App Store collection ${type}`);
           }
           
           // Use what we got, up to the requested limit
-          const allApps = apps.slice(0, limit);
+          const allApps = validApps.slice(0, limit);
           
           if (allApps.length < limit && allApps.length > 0) {
             logger.warn(
@@ -445,13 +494,12 @@ export const fetchCollectionApps = async (type: string, store: string,
             );
           }
           
-          const validatedApps = validateAndProcessResponse(allApps, 'App Store client', limit);
-          logger.debug(`Retrieved ${validatedApps.length} apps from App Store collection (paginated)`);
-          
-          return unifyAppStoreResults(validatedApps, STORES.APP_STORE);
+          logger.debug(`Retrieved ${allApps.length} valid apps from App Store collection ${type}`);
+          return unifyAppStoreResults(allApps, STORES.APP_STORE);
         } catch (error) {
-          logger.error('Error fetching from app store client:', error);
-          throw error;
+          logger.error(`Error fetching App Store collection ${type} for ${country}:`, error);
+          // Return empty array instead of failing completely
+          return [];
         }
       }
     } else if (store === STORES.PLAY_STORE) {
@@ -491,30 +539,59 @@ export const fetchCollectionApps = async (type: string, store: string,
         try {
           // Play Store has a limit of 200 items per request, we need to paginate for larger limits
           let allApps: any[] = [];
-          const PLAY_STORE_PAGE_SIZE = 200; // Maximum page size for Play Store
+          const PLAY_STORE_PAGE_SIZE = 100; // Reduced page size to avoid potential issues
           const maxPages = Math.ceil(limit / PLAY_STORE_PAGE_SIZE);
           
-          for (let page = 0; page < maxPages; page++) {
-            if (allApps.length >= limit) break;
-            
-            const pageSize = Math.min(PLAY_STORE_PAGE_SIZE, limit - allApps.length);
-            const pageApps: any[] = await gplay.list({
-              collection: mappedType,
-              country,
-              lang,
-              num: pageSize,
-              start: allApps.length, // Start from where we left off
-            });
-            
-            if (!pageApps || !Array.isArray(pageApps) || pageApps.length === 0) {
-              // No more results or error
-              break;
+          try {
+            for (let page = 0; page < maxPages; page++) {
+              if (allApps.length >= limit) break;
+              
+              const pageSize = Math.min(PLAY_STORE_PAGE_SIZE, limit - allApps.length);
+              
+              // Wrap each individual request in a try-catch to handle potential errors
+              try {
+                logger.debug(`Fetching Play Store collection ${type}, page ${page+1}/${maxPages}, size ${pageSize}`);
+                const pageApps: any[] = await gplay.list({
+                  collection: mappedType,
+                  country,
+                  lang,
+                  num: pageSize,
+                  start: allApps.length, // Start from where we left off
+                });
+                
+                if (!pageApps || !Array.isArray(pageApps) || pageApps.length === 0) {
+                  // No more results or error
+                  logger.warn(`No results returned for Play Store collection ${type}, page ${page+1}`);
+                  break;
+                }
+                
+                // Filter out any invalid entries before adding to allApps
+                const validPageApps = pageApps.filter(app => app && typeof app === 'object');
+                logger.debug(`Retrieved ${validPageApps.length}/${pageApps.length} 
+                  valid apps from Play Store collection ${type}, page ${page+1}`);
+                
+                allApps = [...allApps, ...validPageApps];
+                
+                // If we got fewer results than requested, there are no more results
+                if (pageApps.length < pageSize) break;
+              } catch (pageError) {
+                // Log the error but continue with the next page
+                logger.error(`Error fetching Play Store collection ${type}, page ${page+1}:`, pageError);
+                // If this is the first page and we have no apps yet, we'll propagate the error later
+                if (page > 0 || allApps.length > 0) {
+                  continue; // Skip to next page if we already have some data
+                }
+                throw pageError; // Re-throw if this is the first page and we have no data
+              }
             }
-            
-            allApps = [...allApps, ...pageApps];
-            
-            // If we got fewer results than requested, there are no more results
-            if (pageApps.length < pageSize) break;
+          } catch (paginationError) {
+            // If we have some apps already, return what we have instead of failing completely
+            if (allApps.length > 0) {
+              logger.warn(`Pagination error in Play Store collection ${type}, 
+                but returning ${allApps.length} apps that were successfully fetched:`, paginationError);
+            } else {
+              throw paginationError;
+            }
           }
 
           const validatedApps = validateAndProcessResponse(allApps, 'Play Store', limit);

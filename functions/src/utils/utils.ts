@@ -2,13 +2,15 @@ import { UnifiedAppResult, UnifiedReview } from './types.js';
 
 import { STORES, StoreType } from './stores.js';
 
-export const unifyAppStoreResults = (apps: any[], store: StoreType): UnifiedAppResult[] => {
+export const unifyAppStoreResults = (apps: any[], store: StoreType, preserveRanking = true): UnifiedAppResult[] => {
   if (!apps || !Array.isArray(apps)) {
     console.error('Invalid apps array:', apps);
     return [];
   }
 
   return apps.map((app, index) => {
+    // Add ranking information based on the app's position in the array
+    const ranking = preserveRanking ? index + 1 : undefined;
     try {
       if (!app || typeof app !== 'object') {
         console.error(`Invalid app at index ${index}:`, app);
@@ -138,6 +140,7 @@ export const unifyAppStoreResults = (apps: any[], store: StoreType): UnifiedAppR
         availableCountries,
         languages,
         supportedDevices,
+        ranking, // Add the app's position in the category or collection
       };
     } catch (error) {
       console.error(`Error processing app at index ${index}:`, error);

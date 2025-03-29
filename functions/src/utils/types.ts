@@ -148,6 +148,7 @@ export interface UnifiedAppResult {
   genre?: string;
   genreId?: string | number;
   store: StoreType;
+  ranking?: number; // Position in category or collection
   // Privacy data from App Store
   privacyData?: {
     dataCategories?: Array<{
