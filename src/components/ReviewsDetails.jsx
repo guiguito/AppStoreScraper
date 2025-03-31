@@ -159,7 +159,7 @@ function ReviewsDetails() {
     if (reviews.length > 0) {
       fetchSentiment();
     }
-  }, [id, store, selectedLang, selectedCountry, reviews, getCachedData, setCachedData, startDate, endDate]);
+  }, [id, store, selectedLang, selectedCountry, reviews, startDate, endDate]);
 
 
 
@@ -255,7 +255,7 @@ function ReviewsDetails() {
       setTotalReviews(0);
       setError(null);
     };
-  }, [id, store, selectedLang, selectedCountry, getCachedData, setCachedData]);
+  }, [id, store, selectedLang, selectedCountry]);
 
   const handleDownloadReviews = async () => {
     try {

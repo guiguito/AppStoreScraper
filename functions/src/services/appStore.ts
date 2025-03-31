@@ -13,18 +13,25 @@ import { STORES, COLLECTION_TYPES } from '../utils/stores.js';
 
 export const fetchAppStoreReviews = async (id: string, country: string, lang: string, limit: number):
   Promise<UnifiedReview[]> => {
+  
+  // Declare variables outside the try block to ensure they are accessible in catch
+  let reviews: UnifiedReview[] = [];
+  let page = 0;
+
   try {
-    let reviews: UnifiedReview[] = [];
-    let page = 0;
+    logger.info(`fetchAppStoreReviews called with: id=${id}, country=${country}, lang=${lang}, limit=${limit}`); 
     let hasMore = true;
     while (hasMore && reviews.length < limit) {
+      const countryCode = getCountryCode(country);
+      logger.info(`Fetching App Store reviews page ${page} for id=${id}, country=${countryCode}, lang=${lang}`);
       const results = await appStoreClient.reviews({
         id: id.toString(),
-        country: getCountryCode(country),
+        country: countryCode,
         language: lang,
         page,
         sort: Sort.RECENT,
       });
+      logger.info(`Received ${results?.length ?? 0} reviews from appStoreClient for page ${page}`);
       if (results && results.length > 0) {
         reviews = reviews.concat(results.map(review => ({
           ...review,
@@ -38,15 +45,29 @@ export const fetchAppStoreReviews = async (id: string, country: string, lang: st
     }
     return reviews;
   } catch (error: any) {
+    // Log the raw error object FIRST for better debugging
+    logger.error('Raw error caught in fetchAppStoreReviews:', error);
+
     // Check if this is an AppNotFoundError
-    if (error.name === 'AppNotFoundError' ||
-      error.message?.includes('App with ID') 
-      && error.message?.includes('not found')) {
-      logger.warn(`App not found in App Store: ${id}`);
-      return []; // Return empty array instead of throwing
-    }
+    const isAppNotFoundError = error.name === 'AppNotFoundError' ||
+                             (error.message?.includes('App with ID') && 
+                              error.message?.includes('not found'));
+
+    if (isAppNotFoundError) {
+      // If error occurred during pagination (page > 0), return what we have
+      if (page > 0) { 
+        logger.warn(`AppNotFoundError occurred during pagination (page ${page}) for ${id}.
+          Returning ${reviews.length} reviews collected so far.`);
+        return reviews; 
+      } else {
+        // If error occurred on the first page (page 0), app is likely genuinely not found
+        logger.warn(`App not found in App Store on initial fetch (page 0): ${id}`);
+        return [];
+      }
+    } 
     
-    logger.error('Error fetching App Store reviews:', error);
+    // For other types of errors, log and re-throw
+    logger.error('Unhandled error fetching App Store reviews:', error);
     throw error;
   }
 };
@@ -537,9 +558,40 @@ export const fetchCollectionApps = async (type: string, store: string,
 
         logger.debug(`Fetching Play Store collection: ${type}`);
         try {
-          // Play Store has a limit of 200 items per request, we need to paginate for larger limits
+          // Special handling for problematic collections like topselling_paid
+          // that cause the 'fantasy-land/map' error
+          const problematicCollections = ['topselling_paid'];
+          if (problematicCollections.includes(type)) {
+            logger.warn(`Using alternative approach for problematic collection: ${type}`);
+            
+            // For problematic collections, try to fetch TOP_PAID instead
+            // which is more reliable but should contain similar apps
+            try {
+              logger.debug(`Attempting to fetch TOP_PAID as alternative for ${type}`);
+              const alternativeApps = await gplay.list({
+                collection: gplay.collection.TOP_PAID,
+                country,
+                lang,
+                num: limit,
+              });
+              
+              if (alternativeApps && Array.isArray(alternativeApps) && alternativeApps.length > 0) {
+                logger.info(`Successfully fetched ${alternativeApps.length} apps using alternative method for ${type}`);
+                const validApps = alternativeApps.filter(app => app && typeof app === 'object');
+                return unifyAppStoreResults(validApps, STORES.PLAY_STORE);
+              }
+              
+              // If alternative approach fails, continue with regular approach as fallback
+              logger.warn(`Alternative approach failed for ${type}, trying regular approach`);
+            } catch (altError) {
+              logger.error(`Error with alternative approach for ${type}:`, altError);
+              // Continue with regular approach as fallback
+            }
+          }
+          
+          // Regular approach for non-problematic collections or as fallback
           let allApps: any[] = [];
-          const PLAY_STORE_PAGE_SIZE = 100; // Reduced page size to avoid potential issues
+          const PLAY_STORE_PAGE_SIZE = 50; // Further reduced page size to avoid potential issues
           const maxPages = Math.ceil(limit / PLAY_STORE_PAGE_SIZE);
           
           try {
@@ -551,6 +603,13 @@ export const fetchCollectionApps = async (type: string, store: string,
               // Wrap each individual request in a try-catch to handle potential errors
               try {
                 logger.debug(`Fetching Play Store collection ${type}, page ${page+1}/${maxPages}, size ${pageSize}`);
+                
+                // Add delay between requests to avoid rate limiting
+                if (page > 0) {
+                  logger.debug(`Adding delay before fetching page ${page+1}`);
+                  await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+                }
+                
                 const pageApps: any[] = await gplay.list({
                   collection: mappedType,
                   country,
@@ -581,7 +640,10 @@ export const fetchCollectionApps = async (type: string, store: string,
                 if (page > 0 || allApps.length > 0) {
                   continue; // Skip to next page if we already have some data
                 }
-                throw pageError; // Re-throw if this is the first page and we have no data
+                
+                // For first page errors, return empty array instead of throwing
+                logger.warn(`First page failed for ${type}, returning empty array`);
+                return [];
               }
             }
           } catch (paginationError) {
@@ -590,7 +652,9 @@ export const fetchCollectionApps = async (type: string, store: string,
               logger.warn(`Pagination error in Play Store collection ${type}, 
                 but returning ${allApps.length} apps that were successfully fetched:`, paginationError);
             } else {
-              throw paginationError;
+              // Return empty array instead of throwing
+              logger.error(`Complete pagination failure for ${type}, returning empty array:`, paginationError);
+              return [];
             }
           }
 

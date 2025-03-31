@@ -12,8 +12,13 @@ export const analyzeSentiment = async (
   endDate: Date | null
 ): Promise<SentimentAnalysisResponse> => {
   try {
-    // Check cache first
-    const cacheRef = db.collection('sentiment-cache').doc(`${appId}-${country}`);
+    // Generate date strings for cache key, handling nulls
+    const startDateStr = startDate ? startDate.toISOString().split('T')[0] : 'all';
+    const endDateStr = endDate ? endDate.toISOString().split('T')[0] : 'all';
+    const cacheKey = `${appId}-${country}-${startDateStr}-${endDateStr}`;
+
+    // Check cache first using the date-specific key
+    const cacheRef = db.collection('sentiment-cache').doc(cacheKey);
     const cacheDoc = await cacheRef.get();
     
     if (cacheDoc.exists) {
@@ -40,18 +45,25 @@ export const analyzeSentiment = async (
       });
     }
 
-    // Prepare reviews for analysis
-    const reviewTexts = filteredReviews.map(review => review.text).join('\\n');
+    // Prepare reviews for analysis, formatted as a markdown list
+    const reviewTexts = filteredReviews.map(r => `- ${r.text}`).join('\n');
 
     const prompt = `You are a Mobile Product Manager conducting a comprehensive sentiment analysis on the reviews below.
     Your task is to: Categorize with your own analysis (no external code and library)
-    sentiment into three distinct groups:Positive, Negative, and Neutral based on the text reviews.
+    sentiment of reviews into 4 distinct groups:Positive, Negative, Neutral and Unknown sentiment
+     based on the text reviews.
     Count the number of reviews falling into each sentiment category and present the results
     in a structured format. Identify the top 5 recurring issues from negative and neutral reviews.
     Summarize each issue and provide the number of occurrences.
     Provide insights on the overall sentiment distribution and any notable patterns found in the dataset.
     Please provide your answers in english.
-    Reviews to analyze: ${reviewTexts}`;
+    Reviews to analyze:\n\n${reviewTexts}`;
+
+    // Log the count of reviews being sent
+    logger.info({ message: `Sending ${filteredReviews.length} reviews for sentiment analysis.` });
+
+    // Log the prompt before sending to Mistral API
+    logger.info({ message: 'Sending prompt to Mistral API', prompt: prompt });
 
     // Call Mistral API for sentiment analysis
     const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
@@ -87,6 +99,7 @@ export const analyzeSentiment = async (
                     Positive: { title: 'Positive Reviews', type: 'integer', minimum: 0 },
                     Neutral: { title: 'Neutral Reviews', type: 'integer', minimum: 0 },
                     Negative: { title: 'Negative Reviews', type: 'integer', minimum: 0 },
+                    Unknown: { title: 'Unknown sentiment Reviews', type: 'integer', minimum: 0 },
                   },
                   required: ['Positive', 'Neutral', 'Negative'],
                   additionalProperties: false,
@@ -133,12 +146,15 @@ export const analyzeSentiment = async (
     }
 
     const result = await response.json();
+    logger.info({ message: 'Received response from Mistral API', response: result }); // Log the raw response
     const analysis = JSON.parse(result.choices[0].message.content) as SentimentAnalysisResponse;
 
-    // Cache the results
+    // Cache the results using the date-specific key
     await cacheRef.set({
       appId,
       country,
+      startDate: startDateStr, // Store date strings in cache doc for clarity
+      endDate: endDateStr,
       analysis,
       lastUpdated: new Date(),
     });

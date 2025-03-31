@@ -33,7 +33,7 @@ reviewsRouter.get('/reviews/:store/:id/sentiment', async (req: ValidatedRequest,
     const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
     const endDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
     const requestedLimit = req.query.limit?.toString();
-    const limit = Math.min(parseInt(requestedLimit || '100'), 550);
+    const limit = Math.min(parseInt(requestedLimit || '550'), 550);
 
     if (!isValidStore(store)) {
       return res.status(400).json({ error: 'Invalid store specified' });

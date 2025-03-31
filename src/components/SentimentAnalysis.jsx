@@ -17,6 +17,7 @@ const COLORS = {
   Positive: '#4caf50',  // Green
   Neutral: '#ff9800',   // Orange
   Negative: '#f44336',  // Red
+  Unknown: '#9e9e9e'   // Grey (for Unknown)
 };
 
 function SentimentAnalysis({ data, loading, error }) {
