@@ -191,6 +191,27 @@ export interface AppStoreResult extends UnifiedAppResult {
   store: 'appstore';
 }
 
+export interface SentimentDistribution {
+  Positive: number;
+  Neutral: number;
+  Negative: number;
+  Unknown: number;
+}
+
+export interface SentimentAnalysisResponse {
+  SentimentDistribution: SentimentDistribution;
+  TopIssues: Array<{
+    Issue: string;
+    Mentions: number;
+    Description: string;
+  }>;
+  Insights: {
+    OverallSentiment?: string;
+    KeyPatterns?: string[];
+  };
+  InputReviewCount: number;
+}
+
 export interface CachedSentimentAnalysis {
   appId: string;
   country: string;
@@ -198,26 +219,6 @@ export interface CachedSentimentAnalysis {
   lastUpdated: Timestamp;
   startDate?: Date | null;
   endDate?: Date | null;
-}
-
-export interface SentimentAnalysisResponse {
-  SentimentDistribution: {
-    Positive: number;
-    Neutral: number;
-    Negative: number;
-  };
-  Positive: number;
-  Neutral: number;
-  Negative: number;
-  TopIssues: Array<{
-    Issue: string;
-    Mentions: number;
-    Description: string;
-  }>;
-  Insights: {
-    OverallSentiment: string;
-    KeyPatterns: string[];
-  };
 }
 
 export const enum PlayStoreCategoryEnum {

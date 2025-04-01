@@ -1,8 +1,8 @@
 import * as logger from 'firebase-functions/logger';
 import { MISTRAL_API_KEY } from '../utils/countries.js';
-import { SentimentAnalysisResponse, CachedSentimentAnalysis, UnifiedReview } from '../utils/types.js';
+import { SentimentAnalysisResponse, UnifiedReview } from '../utils/types.js';
 import { db } from '../index.js';
-
+import { Parser } from 'json2csv'; // Import json2csv Parser
 
 export const analyzeSentiment = async (
   appId: string,
@@ -22,7 +22,7 @@ export const analyzeSentiment = async (
     const cacheDoc = await cacheRef.get();
     
     if (cacheDoc.exists) {
-      const cachedData = cacheDoc.data() as CachedSentimentAnalysis;
+      const cachedData = cacheDoc.data() as any;
       const cacheAge = Date.now() - cachedData.lastUpdated.toDate().getTime();
       
       // Use cache if it's less than 24 hours old
@@ -45,19 +45,31 @@ export const analyzeSentiment = async (
       });
     }
 
-    // Prepare reviews for analysis, formatted as a markdown list
-    const reviewTexts = filteredReviews.map(r => `- ${r.text}`).join('\n');
+    // Prepare reviews for analysis as CSV
+    const fields = ['text'];
+    const json2csvParser = new Parser({ fields });
+    const reviewTexts = json2csvParser.parse(filteredReviews);
 
-    const prompt = `You are a Mobile Product Manager conducting a comprehensive sentiment analysis on the reviews below.
+    const prompt = `You are a Mobile Product Manager conducting a comprehensive sentiment analysis
+    on the ${filteredReviews.length} reviews provided in the CSV data below.
+    The CSV contains app store reviews. Focus on the content in the 'text' column.
+    It is CRITICAL that you analyze EVERY single review provided. Do not be lazy or skip any reviews.
+    Your analysis MUST cover the full dataset provided.
+
     Your task is to: Categorize with your own analysis (no external code and library)
-    sentiment of reviews into 4 distinct groups:Positive, Negative, Neutral and Unknown sentiment
-     based on the text reviews.
+    sentiment of reviews (from the 'text' column) into 4 distinct groups:
+    Positive, Negative, Neutral, and Unknown sentiment.
     Count the number of reviews falling into each sentiment category and present the results
-    in a structured format. Identify the top 5 recurring issues from negative and neutral reviews.
+    in a structured format. Identify the top 5 recurring issues from negative and
+    neutral reviews (found in the 'text' column).
     Summarize each issue and provide the number of occurrences.
-    Provide insights on the overall sentiment distribution and any notable patterns found in the dataset.
+    Provide insights on the overall sentiment distribution and any notable patterns found
+    in the dataset (based on the 'text' column).
     Please provide your answers in english.
-    Reviews to analyze:\n\n${reviewTexts}`;
+    Ensure your JSON response includes the total count of reviews provided in the 'InputReviewCount' field.
+    CSV data with reviews to analyze:
+
+${reviewTexts}`;
 
     // Log the count of reviews being sent
     logger.info({ message: `Sending ${filteredReviews.length} reviews for sentiment analysis.` });
@@ -101,7 +113,7 @@ export const analyzeSentiment = async (
                     Negative: { title: 'Negative Reviews', type: 'integer', minimum: 0 },
                     Unknown: { title: 'Unknown sentiment Reviews', type: 'integer', minimum: 0 },
                   },
-                  required: ['Positive', 'Neutral', 'Negative'],
+                  required: ['Positive', 'Neutral', 'Negative'], // Unknown is optional
                   additionalProperties: false,
                 },
                 TopIssues: {
@@ -123,13 +135,19 @@ export const analyzeSentiment = async (
                   type: 'object',
                   properties: {
                     OverallSentiment: { title: 'Overall Sentiment Summary', type: 'string' },
-                    KeyPatterns: { title: 'Key Patterns', type: 'array', items: { type: 'string' } },
+                    KeyPatterns: { title: 'Key Patterns Observed', type: 'array', items: { type: 'string' } },
                   },
-                  required: ['OverallSentiment', 'KeyPatterns'],
                   additionalProperties: false,
                 },
+                InputReviewCount: { 
+                  title: 'Total Reviews Provided to Analyze',
+                  type: 'integer',
+                  description: 'Total reviews in input CSV.',
+                  minimum: 0,
+                },
               },
-              required: ['SentimentDistribution', 'TopIssues', 'Insights'],
+              required: ['SentimentDistribution', 'TopIssues', 'Insights',
+                'InputReviewCount'], // Make new field required
               additionalProperties: false,
             },
             name: 'sentiment_analysis',
